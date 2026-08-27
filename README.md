@@ -14,6 +14,8 @@ O repositório contém somente a fundação técnica da primeira entrega:
 
 As funcionalidades de projetos, tarefas, scheduler, Tabela, Kanban, Gantt, templates e importação/exportação ainda não foram implementadas.
 
+O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
+
 ## Stack
 
 - Tauri 2 e Rust apenas para a camada nativa;
