@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+target/
+src-tauri/target/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
+
+# Local development data
+.local/
+
+# Generated test datasets
+test-data/
+
+# Temporary files
+temp/
+tmp/
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# ProjectFlow exports
+*.projectflow
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*

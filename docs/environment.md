@@ -1,0 +1,117 @@
+# Ambiente de desenvolvimento
+
+Inspeção e bootstrap executados em 26 de agosto de 2026, no Windows 11 Pro x64 25H2, build `26200.9168`. O campo legado `ProductName` do Registro ainda reporta “Windows 10 Pro”; arquitetura e build confirmam o ambiente Windows 11 x64 informado para o projeto.
+
+## Critério de versões
+
+A seleção seguiu a ordem definida em `AGENTS.md`: compatibilidade, estabilidade, manutenção e atualidade.
+
+- Tauri requer Microsoft C++ Build Tools, WebView2, Rust MSVC e Node LTS no Windows ([pré-requisitos oficiais](https://v2.tauri.app/start/prerequisites/)).
+- O scaffold foi criado com o utilitário oficial `create-tauri-app` ([guia oficial](https://v2.tauri.app/start/create-project/)).
+- Node 24 é a linha Active LTS escolhida; foi usado o patch x64 disponível no índice oficial em 26/08/2026 ([releases do Node](https://nodejs.org/en/about/previous-releases), [distribuição 24.x](https://nodejs.org/dist/latest-v24.x/)).
+- Rust 1.98.0 é stable e foi instalado pelo Rustup oficial com o host MSVC x64 ([anúncio 1.98.0](https://blog.rust-lang.org/2026/08/20/Rust-1.98.0/), [instalação](https://www.rust-lang.org/tools/install)).
+- Vite 8.2 é suportado e aceita Node `^20.19 || >=22.12` ([política de releases](https://vite.dev/releases)).
+- React 19.2 é a linha estável atual ([versões do React](https://react.dev/versions)).
+- TypeScript 7.0.2 não foi adotado porque `typescript-eslint` 8.68.0 declara suporte a TypeScript `<6.1.0`. TypeScript 6.0.3 é a versão estável mais recente dentro da faixa compatível.
+
+## Ferramentas-base
+
+| Ferramenta | Versão validada | Escopo | Situação/origem | Verificação |
+| --- | --- | --- | --- | --- |
+| Windows | 11 Pro x64 25H2, build 26200.9168 | sistema | existente | Registro `CurrentVersion` |
+| Git for Windows | 2.55.0.windows.3 | máquina | existente; não reinstalado | `git --version` |
+| Node.js | 24.20.0 LTS x64 | máquina | instalado pelo MSI oficial | `node --version` |
+| npm | 11.19.0 | máquina, fornecido pelo Node | instalado com Node; não atualizado separadamente | `npm --version` |
+| Rustup | 1.29.0 | usuário | instalador oficial x64 | `rustup --version` |
+| Rust | 1.98.0 stable MSVC | usuário | alias `stable` e toolchain exato `1.98.0-x86_64-pc-windows-msvc`, selecionado por `rust-toolchain.toml` | `rustc --version` e `rustup toolchain list -v` |
+| Cargo | 1.98.0 | usuário | fornecido pelo toolchain Rust | `cargo --version` |
+| Visual Studio Build Tools | 2026 Stable 18.9.2 (`18.9.12120.119`) | máquina | canal oficial Stable | `vswhere` |
+| MSVC x64/x86 | toolset 14.51.36231; `cl` 19.51.36256.0 | máquina | workload `Microsoft.VisualStudio.Workload.VCTools` | `vswhere` e versão de `cl.exe` |
+| Windows 11 SDK | 10.0.26100.0 | máquina | componente recomendado do workload C++ | `vswhere` e `Windows Kits` |
+| WebView2 Runtime | 151.0.4129.107 | máquina | existente; não reinstalado | Registro `EdgeUpdate` |
+
+O Build Tools foi instalado pelo canal Stable oficial, com o workload “Desktop development with C++” e componentes recomendados ([componentes oficiais](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools?view=visualstudio)). O WebView2 existente já atendia ao requisito e foi preservado.
+
+VBSCRIPT é necessário somente para gerar MSI. Não foi habilitado nem alterado nesta entrega; a checagem definitiva pertence à fase de distribuição.
+
+## Dependências locais principais
+
+| Pacote/componente | Versão resolvida | Licença | Uso |
+| --- | --- | --- | --- |
+| create-tauri-app | 4.6.2 | MIT/Apache-2.0 | scaffold temporário via npm; não instalado globalmente |
+| @tauri-apps/cli | 2.11.4 | MIT/Apache-2.0 | CLI local |
+| Tauri (crate) | 2.11.5 | MIT/Apache-2.0 | shell desktop |
+| tauri-build | 2.6.3 | MIT/Apache-2.0 | build nativo |
+| React / React DOM | 19.2.8 | MIT | apresentação |
+| TypeScript | 6.0.3 | Apache-2.0 | linguagem e typecheck |
+| Vite | 8.2.2 | MIT | servidor e build frontend |
+| @vitejs/plugin-react | 6.1.0 | MIT | integração React/Vite |
+| ESLint / typescript-eslint | 10.9.1 / 8.68.0 | MIT | lint estrito e type-aware |
+| Vitest | 4.1.11 | MIT | testes TypeScript |
+| Tauri SQL plugin | 2.4.0 | MIT/Apache-2.0 | SQLite e migrations |
+| SQLx | 0.8.6 | MIT/Apache-2.0 | teste nativo da migration |
+| SQLite runtime | 3.46.0 | domínio público | persistência embarcada |
+| Tauri Log plugin | 2.9.0 | MIT/Apache-2.0 | logs locais |
+
+Versões JavaScript ficam em `package.json`/`package-lock.json`; versões Rust ficam em `Cargo.toml`/`Cargo.lock`. `rust-toolchain.toml` fixa Rust 1.98.0. Não há Tauri CLI, React, TypeScript, Vite ou bibliotecas de teste instalados globalmente.
+
+## Integridade dos instaladores
+
+- Node MSI SHA-256: `28b69132c35ccc033bf8f2a67cd10c9d75ef5822593363309da448f2afff2d8a`, igual ao `SHASUMS256.txt` oficial.
+- Rustup SHA-256: `86478e53f769379d7f0ebfa7c9aa97cb76ca92233f79aa2cc0dbee2efaac73c7`, igual ao `.sha256` oficial.
+- Bootstrapper do Build Tools: assinatura Authenticode válida da Microsoft Corporation; versão de arquivo 18.9.12120.119.
+
+## Comandos usados
+
+Inspeção:
+
+```powershell
+git --version
+node --version
+npm --version
+rustc --version
+cargo --version
+rustup --version
+```
+
+Scaffold e dependências locais:
+
+```powershell
+npm create tauri-app@latest . -- --manager npm --template react-ts --identifier com.projectflow.app --tauri-version 2 --force --yes
+npm install
+npm run tauri add sql
+cargo add tauri-plugin-sql --features sqlite
+npm run tauri add log
+```
+
+O identificador foi ajustado antes da validação final para `com.projectflow.desktop`, eliminando o sufixo `.app` desaconselhado pela CLI.
+
+Instalação global:
+
+- Node: MSI oficial x64, instalação por máquina.
+- Rust: `rustup-init.exe -y --default-host x86_64-pc-windows-msvc --default-toolchain stable --profile default`.
+- Build Tools: bootstrapper Stable com `--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended`.
+
+## Observações operacionais
+
+- O host do Codex foi aberto antes das instalações e manteve um `PATH` antigo em alguns subprocessos. O `PATH` persistente do usuário contém `C:\Users\jeanm\.cargo\bin`; abrir um novo terminal elimina essa particularidade.
+- `winget` não estava disponível, por isso foram usados diretamente os instaladores oficiais.
+- O runtime SQLite é incorporado à aplicação; não foi instalado um SQLite CLI global.
+- O scaffold oficial removeu `AGENTS.md` ao usar `--force`; o arquivo foi restaurado imediatamente e seu hash voltou a coincidir exatamente com `HEAD`.
+
+## Validação final
+
+```powershell
+npm ci
+npm run check
+npm audit --audit-level=high
+npm run tauri:build -- --no-bundle
+
+cd src-tauri
+cargo fmt --all -- --check
+cargo check --locked --all-targets
+cargo test --locked --all-targets
+cargo clippy --locked --all-targets -- -D warnings
+```
+
+O build de release gerou `src-tauri/target/release/project-flow.exe`. A execução real do binário confirmou a abertura da aplicação, a criação/aplicação da migration no banco do perfil do usuário e a escrita do log local. A validação de instaladores MSI/NSIS e de uma máquina Windows limpa permanece reservada ao Checkpoint E.
