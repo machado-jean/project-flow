@@ -4,15 +4,22 @@ ProjectFlow é uma aplicação desktop local-first para planejamento de projetos
 
 ## Estado atual
 
-O repositório contém somente a fundação técnica da primeira entrega:
+As Fases 0 e 1 estão concluídas e a Fase 2 está em andamento. O recorte funcional
+atual contém:
 
 - Tauri 2, React, TypeScript e Vite;
-- SQLite embarcado com migration inicial;
+- SQLite embarcado com migrations versionadas;
 - logging local;
 - lint, typecheck, testes e CI para Windows;
-- documentação de arquitetura e ambiente.
+- projetos com criação, edição, status, arquivamento e exclusão;
+- tarefas e subtarefas com edição inline, status, prioridade, progresso, datas,
+  duração, responsável, tags e detalhes;
+- hierarquia com expansão/recolhimento, troca de pai, reordenação e prevenção de ciclos;
+- interface integralmente em português.
 
-As funcionalidades de projetos, tarefas, scheduler, Tabela, Kanban, Gantt, templates e importação/exportação ainda não foram implementadas.
+O scheduler, Kanban, Gantt, templates e importação/exportação ainda não foram
+implementados. A configuração visual de dias úteis entra com o calendário da
+Fase 3; o modelo já aceita atividades aos sábados e domingos.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -75,7 +82,7 @@ MSI/NSIS e instalação offline serão decididos apenas na fase de distribuiçã
 ## Estrutura
 
 ```text
-src/                 apresentação e futura aplicação TypeScript
+src/                 apresentação e aplicação TypeScript
 src/domain/          domínio puro, sem React ou Tauri
 src/features/        projeções e fluxos de cada feature
 src/repositories/    fronteiras de persistência

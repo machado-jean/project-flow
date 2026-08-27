@@ -31,15 +31,15 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Fundação técnica concluída |
-| Fase ativa | Nenhuma; aguardando início explícito da Fase 2 |
-| Próxima fase | Fase 2 — Core |
+| Etapa do produto | Core concluído localmente |
+| Fase ativa | Nenhuma; aguardando checkpoint Git e início explícito da Fase 3 |
+| Próxima fase | Fase 3 — Scheduling |
 | Versão da aplicação | `0.1.0` |
-| Versão do schema SQLite | `1` |
-| Último commit estável | `7b41a4a` — `chore: bootstrap ProjectFlow foundation` |
-| Branch estável | `main`, sincronizada com `origin/main` na atualização deste registro |
+| Versão do schema SQLite | `2` |
+| Último commit estável | `860b9e2` — `Document roadmap tracking in README` |
+| Branch de trabalho | `main`, com o recorte atual ainda não commitado |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
-| Funcionalidades de negócio | Ainda não iniciadas |
+| Funcionalidades de negócio | Primeiro fluxo vertical de Project/Task implementado |
 
 ## Visão geral das fases
 
@@ -47,7 +47,7 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | --- | --- | --- | --- | --- |
 | 0 — Ambiente | Preparar e documentar o toolchain Windows | Concluída | 1 | Pré-requisitos oficiais instalados e validados |
 | 1 — Fundação | Criar shell, qualidade, persistência e documentação | Concluída | 1 e 2 | Aplicação vazia executa, testes passam e SQLite migra |
-| 2 — Core | Implementar Project, Task, hierarquia e Tabela inicial | Planejada | 3 | Core persistido e editável com integridade e testes |
+| 2 — Core | Implementar Project, Task, hierarquia e Tabela inicial | Concluída | 3 | Core persistido e editável com integridade e testes |
 | 3 — Scheduling | Implementar calendário, dependência FS e propagação | Planejada | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
 | 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Planejada | 5 | As views projetam a mesma tarefa sem duplicar dados |
 | 5 — Reutilização | Entregar duplicação e templates | Planejada | 6 | Árvores e relações internas são recriadas com novos UUIDs |
@@ -95,22 +95,23 @@ Critério de saída atendido: Checkpoints A, B, C e D confirmados, sem regras de
 
 ## Fase 2 — Core
 
-Estado: **Planejada**.
+Estado: **Concluída localmente**.
 
 Ordem recomendada:
 
-- [ ] Detalhar o modelo de Project e Task antes da primeira migration de negócio.
-- [ ] Definir contratos, invariantes e erros explícitos em TypeScript puro.
-- [ ] Criar migration versionada para Project e Task.
-- [ ] Testar banco novo e upgrade do schema anterior.
-- [ ] Implementar repositories e transações SQLite.
-- [ ] Implementar criação, edição, arquivamento e exclusão segura de projetos.
-- [ ] Implementar tarefas, status, prioridade, progresso, datas e duração.
-- [ ] Implementar hierarquia, ordenação e prevenção de ciclos de parentesco.
-- [ ] Estabelecer estado único compartilhável pelas views.
-- [ ] Entregar a primeira Tabela editável, com hierarquia e navegação por teclado.
-- [ ] Cobrir domínio, repositories, persistência e fluxos principais de UI.
-- [ ] Atualizar documentação e schema version.
+- [x] Detalhar o modelo de Project e Task antes da primeira migration de negócio.
+- [x] Definir contratos, invariantes e erros explícitos em TypeScript puro.
+- [x] Criar migration versionada para calendários, Project, Task e tags.
+- [x] Testar banco novo e upgrade do schema anterior.
+- [x] Implementar repositories e transações SQLite.
+- [x] Implementar criação, edição, arquivamento e exclusão segura de projetos.
+- [x] Implementar tarefas, status, prioridade, progresso, datas e duração.
+- [x] Concluir ordenação/reordenação de projetos e tarefas na interface.
+- [x] Implementar hierarquia, troca de pai e prevenção de ciclos de parentesco.
+- [x] Estabelecer estado único compartilhável pelas views.
+- [x] Entregar a primeira Tabela editável, com hierarquia e controles nativos de teclado.
+- [x] Cobrir domínio, repositories, persistência e fluxos principais de UI.
+- [x] Atualizar documentação e schema version.
 
 Critérios de saída:
 
@@ -120,7 +121,10 @@ Critérios de saída:
 - Banco novo e upgrade são testados.
 - Lint, typecheck, testes e build passam.
 
-Próximo incremento recomendado: **modelo de domínio e data model de Project/Task**, seguido da migration correspondente. A migration só deve ser criada depois de as invariantes estarem explícitas.
+Critério de saída atendido: o Core persiste com integridade, rejeita hierarquia
+inválida, permite edição e reordenação na Tabela, migra bancos existentes e
+passa pelos gates de qualidade. O Checkpoint Git 3 aguarda apenas o commit local
+e o push autorizado pelo usuário.
 
 ## Fase 3 — Scheduling
 
@@ -210,7 +214,7 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 0 — Especificação inicial | Concluído | `c525351` — `Initial project setup` |
 | 1 — Ambiente + scaffold | Concluído | `7b41a4a` — fundação consolidada |
 | 2 — SQLite + migrations + qualidade | Concluído | `7b41a4a` — fundação consolidada |
-| 3 — Project/Task core | Planejado | — |
+| 3 — Project/Task core | Pronto para versionar | entrega validada, ainda não commitada |
 | 4 — Scheduler FS | Planejado | — |
 | 5 — Tabela/Kanban/Gantt | Planejado | — |
 | 6 — Duplicação/templates | Planejado | — |
@@ -225,8 +229,7 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 
 | Tema | Momento | Registro esperado |
 | --- | --- | --- |
-| Schema detalhado de Project/Task | Início da Fase 2 | Atualização de `data-model.md` e migration |
-| Biblioteca ou estratégia da Tabela | Antes de adicionar uma dependência de grid | ADR se a dependência for estrutural |
+| Biblioteca ou estratégia da Tabela | Antes de adicionar uma dependência de grid | A base atual usa HTML nativo; ADR se uma dependência estrutural for necessária |
 | Biblioteca de Gantt | Antes da Fase 4 | ADR obrigatório |
 | Formato final `.projectflow` | Antes da Fase 6 | `import-export.md` e ADR se necessário |
 | Bundle WebView2 e instalador offline | Durante a Fase 7 | ADR de distribuição |
@@ -258,6 +261,30 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Processo de atualização definido para pessoas e agentes.
 - Commit: `não commitado` no momento da criação deste registro.
 - Resultado: a evolução futura pode ser acompanhada sem alterar ou duplicar a especificação principal.
+
+### 27 de agosto de 2026 — Primeiro fluxo vertical do Core
+
+- Modelo TypeScript estrito criado para calendários, projetos, tarefas e
+  hierarquia, com mensagens destinadas ao usuário em português.
+- Migration `0002_core.sql` adicionou calendários configuráveis, projetos,
+  tarefas, tags normalizadas, chaves externas e índices.
+- Persistência Tauri/SQLite implementada com transações para tags e exclusões.
+- Interface em português permite criar, editar, arquivar e excluir projetos,
+  além de criar tarefas/subtarefas e editar seus campos na Tabela.
+- O calendário padrão usa segunda a sexta; o modelo aceita sábado e domingo sem
+  mudança de schema.
+- Validações: 16 testes TypeScript/React, 7 testes Rust/SQLite, lint, typecheck,
+  build web, Cargo fmt, Clippy e build Tauri release aprovados.
+- Reordenação de projetos e tarefas irmãs adicionada com atualização atômica das
+  posições; ao trocar de pai, a tarefa recebe posição válida no novo grupo.
+- O build real foi reaberto e comprovou a persistência do projeto/tarefa já
+  existentes após recompilação e reinício.
+- As decisões de interface em português e semana configurável foram registradas
+  nos ADRs 007 e 008.
+- Commit: `não commitado`.
+- Checkpoint: Git 3 pronto para versionar, aguardando autorização do usuário
+  para qualquer operação remota.
+- Resultado: a Fase 2 está concluída localmente, sem avançar para scheduling.
 
 ## Regras permanentes de acompanhamento
 

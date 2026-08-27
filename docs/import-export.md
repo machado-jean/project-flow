@@ -2,6 +2,10 @@
 
 Importação, exportação e backup ainda não foram implementados.
 
+O schema local atual é a versão 2. Quando a Fase 6 começar, o pacote deverá
+preservar semanticamente calendários, dias úteis, projetos, tarefas, hierarquia
+e tags já existentes, além das entidades introduzidas até lá.
+
 ## Formato planejado
 
 A extensão provisória é `.projectflow`, com conteúdo ZIP:

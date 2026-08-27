@@ -28,13 +28,36 @@ Dependências não devem apontar no sentido inverso. React não é fonte de verd
 - `src/state/`: estado de aplicação, sem duplicar entidades por view.
 - `src-tauri/`: shell, SQLite, migrations, logs e integrações nativas.
 
-As subpastas planejadas já existem localmente, mas permanecem vazias enquanto a Fase 2 não começa.
+O primeiro recorte da Fase 2 usa essa separação de forma concreta: modelos e
+invariantes vivem em `src/domain/`, `useWorkspace` coordena os casos de uso,
+`WorkspaceRepository` define a fronteira e o adapter Tauri invoca comandos
+nativos explícitos. A interface nunca executa SQL diretamente.
 
 ## Persistência
 
-O plugin SQL oficial do Tauri usa SQLite por meio de SQLx. `src-tauri/migrations/0001_initial.sql` cria somente `app_metadata`; nenhuma tabela de negócio existe ainda.
+O plugin SQL oficial do Tauri abre o SQLite e aplica as migrations registradas.
+O schema atual é a versão 2: `0001_initial.sql` cria os metadados técnicos e
+`0002_core.sql` introduz calendários, projetos, tarefas e tags.
 
-Migrations são registradas no processo nativo, aplicadas em transação pelo plugin e versionadas de forma crescente. O banco desktop usa o diretório `AppConfig` resolvido pelo Tauri, fora do repositório. A pasta `.local/` está disponível e ignorada para artefatos controlados de desenvolvimento.
+Migrations são registradas no processo nativo, aplicadas em transação pelo
+plugin e versionadas de forma crescente. O banco desktop usa o diretório
+`AppConfig` resolvido pelo Tauri, fora do repositório. A pasta `.local/` está
+disponível e ignorada para artefatos controlados de desenvolvimento.
+
+Os comandos `load_workspace`, `save_project`, `reorder_projects`,
+`delete_project`, `save_task`, `reorder_tasks` e `delete_task_tree` formam a API
+nativa atual. Escritas compostas, como tags, reordenação e exclusão de árvores,
+são transacionais. O SQLite permanece a fonte de verdade; o estado React é uma
+projeção em memória do workspace carregado.
+
+## Apresentação inicial
+
+- toda a interface destinada ao usuário está em português;
+- a Tabela inicial usa HTML nativo e controles acessíveis, sem adicionar uma
+  dependência estrutural de grid antes de medir uma necessidade real;
+- projetos e tarefas compartilham um único estado, preparando as futuras views;
+- erros de domínio são apresentados ao usuário e não chegam à persistência;
+- projetos arquivados são mantidos no banco e ficam em modo somente leitura.
 
 ## Segurança e operação local
 

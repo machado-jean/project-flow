@@ -2798,6 +2798,7 @@ dependencies = [
 name = "project-flow"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "serde_json",
  "sqlx",
  "tauri",

@@ -2,28 +2,74 @@
 
 ## Estado implementado
 
-A fundação contém somente a tabela técnica `app_metadata`:
+O schema atual é a versão **2**.
 
-| Campo | Tipo | Regra |
-| --- | --- | --- |
-| `key` | `TEXT` | chave primária, não vazia |
-| `value` | `TEXT` | obrigatório |
+| Migration | Conteúdo |
+| --- | --- |
+| `0001_initial.sql` | `app_metadata` e `schema_version = 1` |
+| `0002_core.sql` | calendários, projetos, tarefas e tags; atualiza para versão 2 |
 
-O registro `schema_version = 1` permite verificar a migration inicial. A tabela usa `STRICT` e `WITHOUT ROWID` para manter tipos previsíveis e evitar estrutura desnecessária.
+As tabelas usam o modo `STRICT`. Chaves externas são habilitadas em todas as
+conexões e as migrations são crescentes e imutáveis.
 
-## Modelo planejado, ainda não implementado
+## Entidades
 
-A Fase 2 deverá introduzir migrations próprias para projetos e tarefas. Fases posteriores incluirão dependências, calendários, feriados, templates e estruturas necessárias a importação/exportação.
+### Calendário
 
-Princípios já definidos:
+`calendars` armazena identidade, nome, indicador de padrão e timestamps.
+`calendar_working_days` armazena os dias úteis normalizados como números de 1 a
+7, de segunda a domingo. O calendário inicial contém segunda a sexta, mas o
+modelo aceita sábado e domingo sem migration futura.
 
-- UUIDs imutáveis;
-- uma única entidade de tarefa projetada em Tabela, Kanban e Gantt;
-- hierarquia por `parent_id`, sem ciclos;
-- dependências como entidade própria;
-- datas de cronograma em `YYYY-MM-DD`, sem timezone;
-- timestamps somente para auditoria técnica;
-- foreign keys e operações multi-entidade executadas em transação;
-- toda alteração de schema por migration nova e imutável.
+Ainda não existem feriados e exceções; pertencem à Fase 3.
 
-O schema de negócio será detalhado antes de sua primeira migration. Este documento não antecipa tabelas ou índices sem os testes de domínio correspondentes.
+### Projeto
+
+`projects` possui UUID imutável, nome, descrição opcional, status, calendário,
+posição, arquivamento e timestamps. Os status internos atuais são:
+
+| Código persistido | Rótulo da interface |
+| --- | --- |
+| `ACTIVE` | Ativo |
+| `ON_HOLD` | Em espera |
+| `COMPLETED` | Concluído |
+| `CANCELLED` | Cancelado |
+
+O arquivamento é reversível. A exclusão é definitiva e remove suas tarefas por
+cascade depois de confirmação na interface.
+
+### Tarefa
+
+`tasks` possui UUID imutável, código opcional, projeto, tarefa-pai, título,
+descrição, status, prioridade, progresso, datas, duração, modo de agendamento,
+posição, responsável livre opcional, observações e timestamps.
+
+Regras atuais:
+
+- progresso é inteiro entre 0 e 100;
+- status: `NOT_STARTED`, `IN_PROGRESS`, `BLOCKED`, `COMPLETED`, `CANCELLED`;
+- prioridade: `LOW`, `NORMAL`, `HIGH`, `CRITICAL`;
+- modo de agendamento: `AUTO` ou `MANUAL`;
+- uma tarefa pode não estar agendada; quando estiver, início, fim e duração são
+  obrigatórios em conjunto;
+- datas de cronograma usam `YYYY-MM-DD`, sem timezone;
+- duração é inteira e maior ou igual a 1;
+- fim não pode ser anterior ao início;
+- pai e filho devem pertencer ao mesmo projeto;
+- auto-parentesco é bloqueado pelo banco e ciclos mais longos são rejeitados no
+  domínio antes da escrita;
+- excluir uma tarefa remove toda a sua árvore em transação.
+
+As tags são normalizadas em `tags` e `task_tags`, com comparação sem distinção
+de maiúsculas/minúsculas. Não há JSON duplicando tags dentro de `tasks`.
+
+## Integridade e evolução
+
+- `projects.calendar_id` usa `ON DELETE RESTRICT`;
+- tarefas usam chaves compostas para impedir pai de outro projeto;
+- tarefas e tags associadas usam cascades controlados;
+- índices atendem hierarquia/ordenação, status, prioridade, datas e busca por tag;
+- banco novo e upgrade da versão 1 para 2 são cobertos por testes;
+- o teste de upgrade comprova que os dados técnicos existentes são preservados;
+- dependências FS, feriados, exceções, templates e importação/exportação ainda
+  receberão migrations próprias nas fases correspondentes.
