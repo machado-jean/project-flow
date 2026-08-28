@@ -33,6 +33,7 @@ function task(overrides: Partial<Task> = {}): Task {
     code: null,
     projectId: PROJECT_ID,
     parentId: null,
+    calendarId: null,
     title: "Tarefa",
     description: null,
     status: "NOT_STARTED",

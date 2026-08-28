@@ -4,8 +4,7 @@ ProjectFlow é uma aplicação desktop local-first para planejamento de projetos
 
 ## Estado atual
 
-As Fases 0 e 1 estão concluídas e a Fase 2 está em andamento. O recorte funcional
-atual contém:
+As Fases 0 a 3 estão concluídas localmente. O recorte funcional atual contém:
 
 - Tauri 2, React, TypeScript e Vite;
 - SQLite embarcado com migrations versionadas;
@@ -15,11 +14,17 @@ atual contém:
 - tarefas e subtarefas com edição inline, status, prioridade, progresso, datas,
   duração, responsável, tags e detalhes;
 - hierarquia com expansão/recolhimento, troca de pai, reordenação e prevenção de ciclos;
+- calendário configurável com segunda a domingo, feriados e exceções;
+- calendário opcional **Todos os dias** para tarefas de fim de semana;
+- cálculo assistido entre início, fim e duração;
+- predecessoras Término para Início, lag, múltiplas relações e prevenção de ciclos;
+- propagação conservadora de tarefas automáticas e aviso para conflitos manuais;
+- tarefas-resumo com datas derivadas;
+- persistência atômica das recalculações;
 - interface integralmente em português.
 
-O scheduler, Kanban, Gantt, templates e importação/exportação ainda não foram
-implementados. A configuração visual de dias úteis entra com o calendário da
-Fase 3; o modelo já aceita atividades aos sábados e domingos.
+Kanban, Gantt, filtros, templates e importação/exportação ainda não foram
+implementados e permanecem nas fases seguintes.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -42,7 +47,18 @@ npm ci
 npm run tauri:dev
 ```
 
-O banco desktop fica no diretório de configuração do usuário resolvido pelo Tauri. No Windows usado no bootstrap:
+Durante o desenvolvimento, `tauri dev` e o release local de teste compartilham:
+
+```text
+project-flow\.local\data\projectflow.sqlite
+```
+
+Na primeira abertura, um banco existente no perfil é copiado de forma
+consistente para essa base, com backup em `.local\backups`. Uma base de
+desenvolvimento já existente nunca é sobrescrita.
+
+O build de distribuição continua usando o diretório de configuração do usuário
+resolvido pelo Tauri. No Windows usado no bootstrap:
 
 ```text
 %APPDATA%\com.projectflow.desktop\projectflow.sqlite
@@ -54,7 +70,21 @@ Logs ficam no diretório recomendado do Windows:
 %LOCALAPPDATA%\com.projectflow.desktop\logs\
 ```
 
-`.local/` permanece reservado a dados e artefatos locais de desenvolvimento e é ignorado pelo Git.
+`.local/` é ignorado pelo Git. A separação entre o release local de teste e o
+build instalável está no
+[ADR 012](docs/decisions/012-shared-development-database.md).
+
+Durante a estabilização da Fase 3, uma variante conhecida do checksum da
+migration 3 existiu em builds locais. A inicialização reconhece somente essa
+variante, valida integralmente o banco e cria uma cópia anterior ao reparo em:
+
+```text
+%APPDATA%\com.projectflow.desktop\backups\
+```
+
+Projetos e tarefas não são modificados. Qualquer divergência diferente da
+variante documentada interrompe a abertura sem escrita; detalhes estão no
+[ADR 011](docs/decisions/011-migration-checksum-compatibility.md).
 
 ## Qualidade e testes
 
@@ -71,7 +101,16 @@ cargo test --locked --all-targets
 cargo clippy --locked --all-targets -- -D warnings
 ```
 
-Para validar o executável sem gerar instaladores:
+Para gerar o executável local de teste que usa o mesmo banco de `tauri dev`:
+
+```powershell
+npm run tauri:build:test
+```
+
+O resultado fica em `src-tauri\target\release\project-flow.exe`. Não distribuir
+esse binário, pois ele referencia a `.local` do checkout em que foi compilado.
+
+Para validar futuramente o comportamento de distribuição sem gerar instaladores:
 
 ```powershell
 npm run tauri:build -- --no-bundle

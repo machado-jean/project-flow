@@ -47,6 +47,7 @@ export interface Task {
   readonly code: string | null;
   readonly projectId: string;
   readonly parentId: string | null;
+  readonly calendarId: string | null;
   readonly title: string;
   readonly description: string | null;
   readonly status: TaskStatus;
@@ -171,6 +172,10 @@ export function validateTask(task: Task): Task {
     projectId: requireUuid(task.projectId, "projectId", "O projeto"),
     parentId:
       task.parentId === null ? null : requireUuid(task.parentId, "parentId", "A tarefa-pai"),
+    calendarId:
+      task.calendarId === null
+        ? null
+        : requireUuid(task.calendarId, "calendarId", "O calendário da tarefa"),
     code: optionalText(task.code),
     title: requireText(task.title, "title", "O título da tarefa"),
     description: optionalText(task.description),
@@ -183,4 +188,3 @@ export function validateTask(task: Task): Task {
     updatedAt: requireIsoTimestamp(task.updatedAt, "updatedAt"),
   };
 }
-

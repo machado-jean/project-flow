@@ -14,6 +14,22 @@ pub struct CalendarRecord {
     #[sqlx(skip)]
     #[serde(default)]
     pub working_days: Vec<i64>,
+    #[sqlx(skip)]
+    #[serde(default)]
+    pub exceptions: Vec<CalendarExceptionRecord>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarExceptionRecord {
+    pub id: String,
+    pub calendar_id: String,
+    #[sqlx(rename = "exception_date")]
+    pub date: String,
+    pub is_working_day: bool,
+    pub name: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -37,6 +53,7 @@ pub struct TaskRecord {
     pub code: Option<String>,
     pub project_id: String,
     pub parent_id: Option<String>,
+    pub calendar_id: Option<String>,
     pub title: String,
     pub description: Option<String>,
     pub status: String,
@@ -56,12 +73,43 @@ pub struct TaskRecord {
     pub tags: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct DependencyRecord {
+    pub id: String,
+    pub project_id: String,
+    pub predecessor_id: String,
+    pub successor_id: String,
+    #[sqlx(rename = "dependency_type")]
+    #[serde(rename = "type")]
+    pub dependency_type: String,
+    pub lag_days: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleChangeSetRecord {
+    #[serde(default)]
+    pub calendars_to_save: Vec<CalendarRecord>,
+    #[serde(default)]
+    pub tasks: Vec<TaskRecord>,
+    #[serde(default)]
+    pub dependencies_to_save: Vec<DependencyRecord>,
+    #[serde(default)]
+    pub dependency_ids_to_delete: Vec<String>,
+    #[serde(default)]
+    pub task_tree_ids_to_delete: Vec<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceData {
     pub calendars: Vec<CalendarRecord>,
     pub projects: Vec<ProjectRecord>,
     pub tasks: Vec<TaskRecord>,
+    pub dependencies: Vec<DependencyRecord>,
 }
 
 #[derive(FromRow)]
@@ -104,6 +152,28 @@ pub async fn load_workspace(pool: &SqlitePool) -> Result<WorkspaceData, sqlx::Er
             .cloned()
             .unwrap_or_default();
     }
+    let calendar_exceptions = sqlx::query_as::<_, CalendarExceptionRecord>(
+        "SELECT id, calendar_id, exception_date, is_working_day, name, created_at, updated_at \
+         FROM calendar_exceptions ORDER BY calendar_id, exception_date",
+    )
+    .fetch_all(pool)
+    .await?;
+    let exceptions_by_calendar = calendar_exceptions.into_iter().fold(
+        HashMap::<String, Vec<CalendarExceptionRecord>>::new(),
+        |mut exceptions, exception| {
+            exceptions
+                .entry(exception.calendar_id.clone())
+                .or_default()
+                .push(exception);
+            exceptions
+        },
+    );
+    for calendar in &mut calendars {
+        calendar.exceptions = exceptions_by_calendar
+            .get(&calendar.id)
+            .cloned()
+            .unwrap_or_default();
+    }
 
     let projects = sqlx::query_as::<_, ProjectRecord>(
         "SELECT id, name, description, status, calendar_id, position, is_archived, \
@@ -112,7 +182,7 @@ pub async fn load_workspace(pool: &SqlitePool) -> Result<WorkspaceData, sqlx::Er
     .fetch_all(pool)
     .await?;
     let mut tasks = sqlx::query_as::<_, TaskRecord>(
-        "SELECT id, code, project_id, parent_id, title, description, status, priority, \
+        "SELECT id, code, project_id, parent_id, calendar_id, title, description, status, priority, \
          progress, start_date, end_date, duration_days, scheduling_mode, position, assignee, \
          notes, created_at, updated_at FROM tasks ORDER BY project_id, parent_id, position, created_at",
     )
@@ -133,12 +203,85 @@ pub async fn load_workspace(pool: &SqlitePool) -> Result<WorkspaceData, sqlx::Er
     for task in &mut tasks {
         task.tags = tags_by_task.get(&task.id).cloned().unwrap_or_default();
     }
+    let dependencies = sqlx::query_as::<_, DependencyRecord>(
+        "SELECT id, project_id, predecessor_id, successor_id, dependency_type, lag_days, \
+         created_at, updated_at FROM task_dependencies ORDER BY project_id, created_at, id",
+    )
+    .fetch_all(pool)
+    .await?;
 
     Ok(WorkspaceData {
         calendars,
         projects,
         tasks,
+        dependencies,
     })
+}
+
+pub async fn save_calendar(
+    pool: &SqlitePool,
+    calendar: &CalendarRecord,
+) -> Result<(), sqlx::Error> {
+    let mut transaction = pool.begin().await?;
+    save_calendar_record(&mut transaction, calendar).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn save_calendar_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    calendar: &CalendarRecord,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO calendars (id, name, is_default, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            is_default = excluded.is_default,
+            updated_at = excluded.updated_at",
+    )
+    .bind(&calendar.id)
+    .bind(&calendar.name)
+    .bind(calendar.is_default)
+    .bind(&calendar.created_at)
+    .bind(&calendar.updated_at)
+    .execute(&mut **transaction)
+    .await?;
+
+    sqlx::query("DELETE FROM calendar_working_days WHERE calendar_id = ?")
+        .bind(&calendar.id)
+        .execute(&mut **transaction)
+        .await?;
+    for weekday in &calendar.working_days {
+        sqlx::query("INSERT INTO calendar_working_days (calendar_id, weekday) VALUES (?, ?)")
+            .bind(&calendar.id)
+            .bind(weekday)
+            .execute(&mut **transaction)
+            .await?;
+    }
+
+    sqlx::query("DELETE FROM calendar_exceptions WHERE calendar_id = ?")
+        .bind(&calendar.id)
+        .execute(&mut **transaction)
+        .await?;
+    for exception in &calendar.exceptions {
+        sqlx::query(
+            "INSERT INTO calendar_exceptions (
+                id, calendar_id, exception_date, is_working_day, name, created_at, updated_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&exception.id)
+        .bind(&calendar.id)
+        .bind(&exception.date)
+        .bind(exception.is_working_day)
+        .bind(&exception.name)
+        .bind(&exception.created_at)
+        .bind(&exception.updated_at)
+        .execute(&mut **transaction)
+        .await?;
+    }
+
+    Ok(())
 }
 
 pub async fn save_project(pool: &SqlitePool, project: &ProjectRecord) -> Result<(), sqlx::Error> {
@@ -193,16 +336,26 @@ pub async fn reorder_projects(
 
 pub async fn save_task(pool: &SqlitePool, task: &TaskRecord) -> Result<(), sqlx::Error> {
     let mut transaction = pool.begin().await?;
+    save_task_record(&mut transaction, task).await?;
+    cleanup_orphan_tags(&mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
 
+async fn save_task_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    task: &TaskRecord,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO tasks (
-            id, code, project_id, parent_id, title, description, status, priority, progress,
+            id, code, project_id, parent_id, calendar_id, title, description, status, priority, progress,
             start_date, end_date, duration_days, scheduling_mode, position, assignee, notes,
             created_at, updated_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
             code = excluded.code,
             parent_id = excluded.parent_id,
+            calendar_id = excluded.calendar_id,
             title = excluded.title,
             description = excluded.description,
             status = excluded.status,
@@ -221,6 +374,7 @@ pub async fn save_task(pool: &SqlitePool, task: &TaskRecord) -> Result<(), sqlx:
     .bind(&task.code)
     .bind(&task.project_id)
     .bind(&task.parent_id)
+    .bind(&task.calendar_id)
     .bind(&task.title)
     .bind(&task.description)
     .bind(&task.status)
@@ -235,12 +389,12 @@ pub async fn save_task(pool: &SqlitePool, task: &TaskRecord) -> Result<(), sqlx:
     .bind(&task.notes)
     .bind(&task.created_at)
     .bind(&task.updated_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
 
     sqlx::query("DELETE FROM task_tags WHERE task_id = ?")
         .bind(&task.id)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     let mut unique_tags = HashMap::<String, String>::new();
@@ -253,23 +407,74 @@ pub async fn save_task(pool: &SqlitePool, task: &TaskRecord) -> Result<(), sqlx:
     for tag in unique_tags.values() {
         sqlx::query("INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING")
             .bind(tag)
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
         sqlx::query("INSERT INTO task_tags (task_id, tag_name) VALUES (?, ?)")
             .bind(&task.id)
             .bind(tag)
-            .execute(&mut *transaction)
+            .execute(&mut **transaction)
             .await?;
     }
 
-    sqlx::query(
-        "DELETE FROM tags WHERE NOT EXISTS (
-            SELECT 1 FROM task_tags WHERE task_tags.tag_name = tags.name
-         )",
-    )
-    .execute(&mut *transaction)
-    .await?;
+    Ok(())
+}
 
+async fn save_dependency_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    dependency: &DependencyRecord,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO task_dependencies (
+            id, project_id, predecessor_id, successor_id, dependency_type, lag_days,
+            created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+            predecessor_id = excluded.predecessor_id,
+            successor_id = excluded.successor_id,
+            dependency_type = excluded.dependency_type,
+            lag_days = excluded.lag_days,
+            updated_at = excluded.updated_at",
+    )
+    .bind(&dependency.id)
+    .bind(&dependency.project_id)
+    .bind(&dependency.predecessor_id)
+    .bind(&dependency.successor_id)
+    .bind(&dependency.dependency_type)
+    .bind(dependency.lag_days)
+    .bind(&dependency.created_at)
+    .bind(&dependency.updated_at)
+    .execute(&mut **transaction)
+    .await?;
+    Ok(())
+}
+
+pub async fn apply_schedule_changes(
+    pool: &SqlitePool,
+    changes: &ScheduleChangeSetRecord,
+) -> Result<(), sqlx::Error> {
+    let mut transaction = pool.begin().await?;
+    for calendar in &changes.calendars_to_save {
+        save_calendar_record(&mut transaction, calendar).await?;
+    }
+    for task_id in &changes.task_tree_ids_to_delete {
+        sqlx::query("DELETE FROM tasks WHERE id = ?")
+            .bind(task_id)
+            .execute(&mut *transaction)
+            .await?;
+    }
+    for dependency_id in &changes.dependency_ids_to_delete {
+        sqlx::query("DELETE FROM task_dependencies WHERE id = ?")
+            .bind(dependency_id)
+            .execute(&mut *transaction)
+            .await?;
+    }
+    for dependency in &changes.dependencies_to_save {
+        save_dependency_record(&mut transaction, dependency).await?;
+    }
+    for task in &changes.tasks {
+        save_task_record(&mut transaction, task).await?;
+    }
+    cleanup_orphan_tags(&mut transaction).await?;
     transaction.commit().await?;
     Ok(())
 }
@@ -333,10 +538,11 @@ mod tests {
     use sqlx::SqlitePool;
 
     use super::{
-        delete_project, delete_task_tree, load_workspace, reorder_projects, reorder_tasks,
-        save_project, save_task, ProjectRecord, TaskRecord,
+        apply_schedule_changes, delete_project, delete_task_tree, load_workspace, reorder_projects,
+        reorder_tasks, save_calendar, save_project, save_task, CalendarExceptionRecord,
+        CalendarRecord, DependencyRecord, ProjectRecord, ScheduleChangeSetRecord, TaskRecord,
     };
-    use crate::database::{CORE_SCHEMA, INITIAL_SCHEMA};
+    use crate::database::{CORE_SCHEMA, INITIAL_SCHEMA, SCHEDULING_SCHEMA};
 
     const PROJECT_ID: &str = "10000000-0000-4000-8000-000000000001";
     const TASK_ID: &str = "20000000-0000-4000-8000-000000000001";
@@ -357,6 +563,10 @@ mod tests {
             .execute(&pool)
             .await
             .expect("core migration should execute");
+        sqlx::raw_sql(SCHEDULING_SCHEMA)
+            .execute(&pool)
+            .await
+            .expect("scheduling migration should execute");
         pool
     }
 
@@ -380,6 +590,7 @@ mod tests {
             code: None,
             project_id: PROJECT_ID.into(),
             parent_id: parent_id.map(str::to_owned),
+            calendar_id: None,
             title: "Tarefa".into(),
             description: None,
             status: "NOT_STARTED".into(),
@@ -395,6 +606,19 @@ mod tests {
             created_at: NOW.into(),
             updated_at: NOW.into(),
             tags: vec!["Operação".into(), "Crítica".into()],
+        }
+    }
+
+    fn dependency() -> DependencyRecord {
+        DependencyRecord {
+            id: "40000000-0000-4000-8000-000000000001".into(),
+            project_id: PROJECT_ID.into(),
+            predecessor_id: TASK_ID.into(),
+            successor_id: CHILD_ID.into(),
+            dependency_type: "FS".into(),
+            lag_days: 0,
+            created_at: NOW.into(),
+            updated_at: NOW.into(),
         }
     }
 
@@ -499,5 +723,185 @@ mod tests {
         let workspace = load_workspace(&pool).await.expect("workspace should load");
         assert_eq!(workspace.projects[0].id, second_project.id);
         assert_eq!(workspace.tasks[0].id, second_task.id);
+    }
+
+    #[tokio::test]
+    async fn saves_calendar_exceptions_and_task_calendar_override() {
+        let pool = database().await;
+        let calendar = CalendarRecord {
+            id: "50000000-0000-4000-8000-000000000001".into(),
+            name: "Operação especial".into(),
+            is_default: false,
+            created_at: NOW.into(),
+            updated_at: NOW.into(),
+            working_days: vec![1, 2, 3, 4, 5, 6],
+            exceptions: vec![CalendarExceptionRecord {
+                id: "30000000-0000-4000-8000-000000000001".into(),
+                calendar_id: "50000000-0000-4000-8000-000000000001".into(),
+                date: "2026-09-07".into(),
+                is_working_day: false,
+                name: Some("Feriado".into()),
+                created_at: NOW.into(),
+                updated_at: NOW.into(),
+            }],
+        };
+        save_calendar(&pool, &calendar)
+            .await
+            .expect("calendar should save");
+        let mut saved_task = task(TASK_ID, None);
+        saved_task.calendar_id = Some(calendar.id.clone());
+        save_project(&pool, &project())
+            .await
+            .expect("project should save");
+        save_task(&pool, &saved_task)
+            .await
+            .expect("task should save");
+
+        let workspace = load_workspace(&pool).await.expect("workspace should load");
+        let loaded_calendar = workspace
+            .calendars
+            .iter()
+            .find(|candidate| candidate.id == calendar.id)
+            .expect("saved calendar should load");
+        assert_eq!(loaded_calendar.working_days, vec![1, 2, 3, 4, 5, 6]);
+        assert_eq!(
+            loaded_calendar.exceptions[0].name.as_deref(),
+            Some("Feriado")
+        );
+        assert_eq!(workspace.tasks[0].calendar_id, Some(calendar.id));
+    }
+
+    #[tokio::test]
+    async fn persists_dependency_and_schedule_changes_atomically() {
+        let pool = database().await;
+        save_project(&pool, &project())
+            .await
+            .expect("project should save");
+        let predecessor = task(TASK_ID, None);
+        let successor = task(CHILD_ID, None);
+        save_task(&pool, &predecessor)
+            .await
+            .expect("predecessor should save");
+        save_task(&pool, &successor)
+            .await
+            .expect("successor should save");
+        let mut scheduled_successor = successor.clone();
+        scheduled_successor.start_date = Some("2026-08-31".into());
+        scheduled_successor.end_date = Some("2026-08-31".into());
+        scheduled_successor.duration_days = Some(1);
+
+        apply_schedule_changes(
+            &pool,
+            &ScheduleChangeSetRecord {
+                calendars_to_save: vec![],
+                tasks: vec![scheduled_successor],
+                dependencies_to_save: vec![dependency()],
+                dependency_ids_to_delete: vec![],
+                task_tree_ids_to_delete: vec![],
+            },
+        )
+        .await
+        .expect("schedule should save atomically");
+
+        let workspace = load_workspace(&pool).await.expect("workspace should load");
+        assert_eq!(workspace.dependencies.len(), 1);
+        assert_eq!(
+            workspace
+                .tasks
+                .iter()
+                .find(|task| task.id == CHILD_ID)
+                .and_then(|task| task.start_date.as_deref()),
+            Some("2026-08-31")
+        );
+    }
+
+    #[tokio::test]
+    async fn rolls_back_all_task_changes_when_one_change_is_invalid() {
+        let pool = database().await;
+        save_project(&pool, &project())
+            .await
+            .expect("project should save");
+        let predecessor = task(TASK_ID, None);
+        let successor = task(CHILD_ID, None);
+        save_task(&pool, &predecessor)
+            .await
+            .expect("predecessor should save");
+        save_task(&pool, &successor)
+            .await
+            .expect("successor should save");
+        let mut valid_change = predecessor.clone();
+        valid_change.progress = 50;
+        let mut invalid_change = successor.clone();
+        invalid_change.progress = 101;
+
+        let result = apply_schedule_changes(
+            &pool,
+            &ScheduleChangeSetRecord {
+                calendars_to_save: vec![],
+                tasks: vec![valid_change, invalid_change],
+                dependencies_to_save: vec![],
+                dependency_ids_to_delete: vec![],
+                task_tree_ids_to_delete: vec![],
+            },
+        )
+        .await;
+        assert!(result.is_err());
+
+        let workspace = load_workspace(&pool).await.expect("workspace should load");
+        assert!(workspace.tasks.iter().all(|task| task.progress == 0));
+    }
+
+    #[tokio::test]
+    async fn rejects_unsupported_dependency_type_and_summary_relations() {
+        let pool = database().await;
+        save_project(&pool, &project())
+            .await
+            .expect("project should save");
+        let predecessor = task(TASK_ID, None);
+        let successor = task(CHILD_ID, None);
+        save_task(&pool, &predecessor)
+            .await
+            .expect("predecessor should save");
+        save_task(&pool, &successor)
+            .await
+            .expect("successor should save");
+
+        let mut unsupported = dependency();
+        unsupported.dependency_type = "SS".into();
+        let unsupported_result = apply_schedule_changes(
+            &pool,
+            &ScheduleChangeSetRecord {
+                calendars_to_save: vec![],
+                tasks: vec![],
+                dependencies_to_save: vec![unsupported],
+                dependency_ids_to_delete: vec![],
+                task_tree_ids_to_delete: vec![],
+            },
+        )
+        .await;
+        assert!(unsupported_result.is_err());
+
+        let summary_child = TaskRecord {
+            parent_id: Some(TASK_ID.into()),
+            ..successor
+        };
+        save_task(&pool, &summary_child)
+            .await
+            .expect("child should make predecessor a summary task");
+        let summary_result = apply_schedule_changes(
+            &pool,
+            &ScheduleChangeSetRecord {
+                calendars_to_save: vec![],
+                tasks: vec![],
+                dependencies_to_save: vec![dependency()],
+                dependency_ids_to_delete: vec![],
+                task_tree_ids_to_delete: vec![],
+            },
+        )
+        .await;
+        assert!(summary_result.is_err());
+
+        let workspace = load_workspace(&pool).await.expect("workspace should load");
+        assert!(workspace.dependencies.is_empty());
     }
 }

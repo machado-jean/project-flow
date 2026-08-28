@@ -28,27 +28,70 @@ Dependências não devem apontar no sentido inverso. React não é fonte de verd
 - `src/state/`: estado de aplicação, sem duplicar entidades por view.
 - `src-tauri/`: shell, SQLite, migrations, logs e integrações nativas.
 
-O primeiro recorte da Fase 2 usa essa separação de forma concreta: modelos e
-invariantes vivem em `src/domain/`, `useWorkspace` coordena os casos de uso,
-`WorkspaceRepository` define a fronteira e o adapter Tauri invoca comandos
-nativos explícitos. A interface nunca executa SQL diretamente.
+As Fases 2 e 3 usam essa separação de forma concreta: modelos, calendário,
+grafo e scheduler vivem em `src/domain/`; `useWorkspace` coordena casos de uso,
+validação e persistência; `WorkspaceRepository` define a fronteira; e o adapter
+Tauri invoca comandos nativos explícitos. A interface nunca executa SQL nem
+contém regras centrais de agendamento.
 
 ## Persistência
 
 O plugin SQL oficial do Tauri abre o SQLite e aplica as migrations registradas.
-O schema atual é a versão 2: `0001_initial.sql` cria os metadados técnicos e
-`0002_core.sql` introduz calendários, projetos, tarefas e tags.
+O schema atual é a versão 3: `0001_initial.sql` cria metadados técnicos,
+`0002_core.sql` introduz calendários, projetos, tarefas e tags, e
+`0003_scheduling.sql` acrescenta exceções, calendário opcional por tarefa e
+dependências FS.
 
 Migrations são registradas no processo nativo, aplicadas em transação pelo
-plugin e versionadas de forma crescente. O banco desktop usa o diretório
-`AppConfig` resolvido pelo Tauri, fora do repositório. A pasta `.local/` está
-disponível e ignorada para artefatos controlados de desenvolvimento.
+plugin e versionadas de forma crescente. O adapter carrega explicitamente a URL
+calculada pelo backend antes do primeiro comando de workspace, evitando que o
+preload abra uma segunda instância.
 
-Os comandos `load_workspace`, `save_project`, `reorder_projects`,
-`delete_project`, `save_task`, `reorder_tasks` e `delete_task_tree` formam a API
-nativa atual. Escritas compostas, como tags, reordenação e exclusão de árvores,
-são transacionais. O SQLite permanece a fonte de verdade; o estado React é uma
-projeção em memória do workspace carregado.
+Builds debug e o release local criado por `npm run tauri:build:test` compartilham
+`project-flow\.local\data\projectflow.sqlite`. Um build de distribuição sem a
+feature `shared-dev-data` continua usando `AppConfig` resolvido pelo Tauri. Na
+primeira abertura do modo compartilhado, o banco existente em `AppConfig` é
+preservado com `VACUUM INTO`, verificado e copiado para `.local` sem sobrescrever
+um destino existente. A separação e a virtualização de `AppData` que a motivou
+estão documentadas no [ADR 012](decisions/012-shared-development-database.md).
+
+Antes do plugin SQL, uma verificação nativa trata exclusivamente a variante de
+checksum da migration 3 conhecida durante o desenvolvimento. Ela valida
+integridade, histórico, schema e dados estruturais, cria um backup SQLite
+consistente e altera somente o checksum registrado. Valores desconhecidos
+falham sem escrita. A decisão e os hashes permitidos estão no
+[ADR 011](decisions/011-migration-checksum-compatibility.md).
+
+Os comandos de CRUD simples continuam disponíveis. A Fase 3 acrescenta
+`save_calendar` e `apply_schedule_changes`. Este último recebe o resultado já
+validado do domínio e grava calendários, tarefas, dependências e exclusões em
+uma única transação. Uma falha reverte todo o conjunto. O SQLite permanece a
+fonte de verdade; o estado React é uma projeção em memória do workspace.
+
+Ao carregar, o estado reconcilia uma vez as cadeias automáticas e as
+tarefas-resumo. Somente diferenças reais são gravadas pelo mesmo comando
+transacional; tarefas manuais permanecem intactas e seus conflitos são
+reconstruídos para a interface.
+
+## Fluxo do scheduler
+
+```text
+edição na Tabela
+    ↓
+useWorkspace valida entidade, hierarquia e grafo
+    ↓
+scheduler TypeScript calcula subgrafo afetado e tarefas-resumo
+    ↓
+ScheduleChangeSet completo
+    ↓
+apply_schedule_changes / transação SQLite
+    ↓
+estado React recebe exatamente o resultado persistido
+```
+
+O scheduler aplica política conservadora, calendário efetivo da sucessora e
+conflitos informativos para tarefas manuais. As regras detalhadas e a matriz de
+testes estão em [scheduling.md](scheduling.md).
 
 ## Apresentação inicial
 
@@ -56,6 +99,10 @@ projeção em memória do workspace carregado.
 - a Tabela inicial usa HTML nativo e controles acessíveis, sem adicionar uma
   dependência estrutural de grid antes de medir uma necessidade real;
 - projetos e tarefas compartilham um único estado, preparando as futuras views;
+- dependências são editadas na coluna **Predecessoras** da Tabela;
+- início, fim e duração formam uma edição assistida de duas entradas para três campos;
+- calendário e exceções são configuráveis sem sair do projeto;
+- tarefas-resumo exibem datas derivadas e bloqueiam edição direta;
 - erros de domínio são apresentados ao usuário e não chegam à persistência;
 - projetos arquivados são mantidos no banco e ficam em modo somente leitura.
 
@@ -65,6 +112,8 @@ projeção em memória do workspace carregado.
 - Capabilities habilitam apenas `core:default`, leitura/carga SQL padrão e logging.
 - Não há backend remoto, telemetria, conta ou sincronização.
 - Logs usam o diretório recomendado `LocalAppData` e nível máximo `Info`.
+- Bancos e backups de desenvolvimento ficam em `.local/`, fora do Git; builds
+  instaláveis não dependem desse diretório.
 
 ## Qualidade
 

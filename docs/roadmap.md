@@ -4,7 +4,7 @@ Este é o registro vivo de execução do ProjectFlow. Ele traduz o roadmap defin
 
 `AGENTS.md` continua sendo a fonte de verdade para produto, arquitetura e regras operacionais. Este documento não substitui a especificação e não deve introduzir escopo incompatível com ela.
 
-Última atualização: **27 de agosto de 2026**.
+Última atualização: **28 de agosto de 2026**.
 
 ## Como manter este documento
 
@@ -31,15 +31,15 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Core concluído localmente |
-| Fase ativa | Nenhuma; aguardando checkpoint Git e início explícito da Fase 3 |
-| Próxima fase | Fase 3 — Scheduling |
+| Etapa do produto | Scheduling FS concluído localmente |
+| Fase ativa | Nenhuma; Fase 3 pronta para auditoria e checkpoint Git |
+| Próxima fase | Fase 4 — Views, somente após aceite explícito |
 | Versão da aplicação | `0.1.0` |
-| Versão do schema SQLite | `2` |
-| Último commit estável | `860b9e2` — `Document roadmap tracking in README` |
-| Branch de trabalho | `main`, com o recorte atual ainda não commitado |
+| Versão do schema SQLite | `3` |
+| Último commit estável | `1b3e9c6` — `Complete ProjectFlow core with projects tasks and hierarchy` |
+| Branch de trabalho | `main`, com a Fase 3 ainda não commitada |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
-| Funcionalidades de negócio | Primeiro fluxo vertical de Project/Task implementado |
+| Funcionalidades de negócio | Project/Task, calendário, FS, propagação e tarefas-resumo implementados |
 
 ## Visão geral das fases
 
@@ -48,7 +48,7 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | 0 — Ambiente | Preparar e documentar o toolchain Windows | Concluída | 1 | Pré-requisitos oficiais instalados e validados |
 | 1 — Fundação | Criar shell, qualidade, persistência e documentação | Concluída | 1 e 2 | Aplicação vazia executa, testes passam e SQLite migra |
 | 2 — Core | Implementar Project, Task, hierarquia e Tabela inicial | Concluída | 3 | Core persistido e editável com integridade e testes |
-| 3 — Scheduling | Implementar calendário, dependência FS e propagação | Planejada | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
+| 3 — Scheduling | Implementar calendário, dependência FS e propagação | Concluída localmente | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
 | 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Planejada | 5 | As views projetam a mesma tarefa sem duplicar dados |
 | 5 — Reutilização | Entregar duplicação e templates | Planejada | 6 | Árvores e relações internas são recriadas com novos UUIDs |
 | 6 — Portabilidade | Entregar exportação, importação e backup | Planejada | 7 | Round-trip preserva semanticamente o workspace |
@@ -123,26 +123,30 @@ Critérios de saída:
 
 Critério de saída atendido: o Core persiste com integridade, rejeita hierarquia
 inválida, permite edição e reordenação na Tabela, migra bancos existentes e
-passa pelos gates de qualidade. O Checkpoint Git 3 aguarda apenas o commit local
-e o push autorizado pelo usuário.
+passa pelos gates de qualidade. O Checkpoint Git 3 foi consolidado no commit
+`1b3e9c6`.
 
 ## Fase 3 — Scheduling
 
-Estado: **Planejada**.
+Estado: **Concluída localmente**.
 
-- [ ] Implementar datas `date-only` e calendário de trabalho em TypeScript puro.
-- [ ] Implementar fins de semana, feriados e exceções.
-- [ ] Implementar duração inclusiva em dias úteis.
-- [ ] Implementar grafo, detecção de ciclo e ordenação topológica.
-- [ ] Implementar dependência FS com lag e múltiplos predecessores.
-- [ ] Implementar modos AUTO e MANUAL.
-- [ ] Implementar propagação conservadora somente para frente.
-- [ ] Recalcular tarefas-resumo.
-- [ ] Persistir recalculações em transação.
-- [ ] Cobrir todos os 15 casos obrigatórios do scheduler.
-- [ ] Atualizar [scheduling.md](scheduling.md).
+- [x] Implementar datas `date-only` e calendário de trabalho em TypeScript puro.
+- [x] Implementar fins de semana, feriados e exceções.
+- [x] Implementar duração inclusiva em dias úteis.
+- [x] Implementar edição assistida entre início, fim e duração.
+- [x] Implementar grafo, detecção de ciclo e ordenação topológica.
+- [x] Implementar dependência FS com lag e múltiplos predecessores.
+- [x] Restringir dependências ao mesmo projeto e a tarefas-folha.
+- [x] Implementar modos AUTO e MANUAL com conflitos informativos.
+- [x] Implementar calendário opcional por tarefa e opção **Todos os dias**.
+- [x] Implementar propagação conservadora somente para frente.
+- [x] Recalcular e bloquear edição direta de tarefas-resumo.
+- [x] Persistir calendário, relações e recalculações em transação.
+- [x] Cobrir todos os 15 casos obrigatórios do scheduler.
+- [x] Atualizar documentação e ADRs 009–010.
 
-Critério de saída: scheduler FS determinístico, isolado da UI e estável sob cadeia, calendário, ciclos, MANUAL/AUTO e transações.
+Critério de saída atendido: scheduler FS determinístico e isolado da UI, com
+calendário efetivo, cadeia, ciclos, MANUAL/AUTO, resumos e rollback cobertos.
 
 ## Fase 4 — Views
 
@@ -214,8 +218,8 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 0 — Especificação inicial | Concluído | `c525351` — `Initial project setup` |
 | 1 — Ambiente + scaffold | Concluído | `7b41a4a` — fundação consolidada |
 | 2 — SQLite + migrations + qualidade | Concluído | `7b41a4a` — fundação consolidada |
-| 3 — Project/Task core | Pronto para versionar | entrega validada, ainda não commitada |
-| 4 — Scheduler FS | Planejado | — |
+| 3 — Project/Task core | Concluído | `1b3e9c6` |
+| 4 — Scheduler FS | Pronto para versionar | entrega local validada, ainda não commitada |
 | 5 — Tabela/Kanban/Gantt | Planejado | — |
 | 6 — Duplicação/templates | Planejado | — |
 | 7 — Export/import/backup | Planejado | — |
@@ -285,6 +289,162 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Checkpoint: Git 3 pronto para versionar, aguardando autorização do usuário
   para qualquer operação remota.
 - Resultado: a Fase 2 está concluída localmente, sem avançar para scheduling.
+
+### 27 de agosto de 2026 — Scheduling FS e calendários
+
+- Funções puras `date-only` e de calendário implementadas com semana
+  configurável, feriados, exceções positivas e duração inclusiva.
+- Edição da Tabela calcula automaticamente o terceiro campo quando início,
+  fim ou duração fornecem informações suficientes.
+- Grafo FS implementado com validação, ciclo, ordenação topológica, lag,
+  múltiplas predecessoras e propagação conservadora do subgrafo afetado.
+- Tarefas `AUTO` preservam duração e são empurradas para frente; tarefas
+  `MANUAL` permanecem fixas e recebem conflito apenas quando uma predecessora
+  declarada é violada.
+- Calendário opcional por tarefa e calendário integrado **Todos os dias**
+  permitem cadeias automáticas em sábado e domingo sem alterar o padrão do projeto.
+- Tarefas-resumo passaram a derivar início e fim dos descendentes e bloqueiam
+  edição temporal ou dependências diretas.
+- Migration `0003_scheduling.sql` criou exceções e dependências com constraints,
+  chaves estrangeiras e triggers para repetir as invariantes estruturais.
+- `apply_schedule_changes` persiste calendários, dependências, tarefas e resumos
+  em uma transação SQLite, com teste de rollback integral.
+- Conflitos são reconstruídos ao carregar e recalculados por projeto sem sumir
+  quando outra cadeia é editada.
+- Validações finais: 48 testes TypeScript/React, 11 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check, Clippy e build Tauri release aprovados.
+- ADRs: 009 (política FS) e 010 (calendário efetivo por tarefa).
+- Commit: `não commitado`.
+- Checkpoint: Git 4 pronto para versionar após auditoria do usuário.
+- Resultado: a Fase 3 está concluída localmente; a Fase 4 não foi iniciada.
+
+### 28 de agosto de 2026 — Ajustes de UX após auditoria da Fase 3
+
+- O painel **Detalhes** deixou de ficar limitado à largura da coluna Tarefa e
+  passou a ocupar uma linha própria, com formulário responsivo em duas colunas.
+- Alterações de lag deixaram de criar um botão ao lado do campo. O único botão
+  **Salvar** da coluna Ações confirma os campos da tarefa e todos os lags
+  modificados naquela linha.
+- Tarefa, dependências atualizadas e recalculações são enviadas no mesmo
+  `ScheduleChangeSet`; lag inválido impede a gravação de toda a linha.
+- O campo Código recebeu ajuda contextual acessível, explicando que se trata de
+  identificador visual opcional e independente do UUID interno.
+- Testes de UI cobrem estrutura do painel, ajuda do código, salvamento único,
+  atomicidade e rejeição integral de lag inválido.
+- Ao reabrir o app nativo no ambiente visível ao agente, a verificação de
+  integridade detectou que somente as mensagens internas de quatro triggers da
+  migration 3 haviam sido traduzidas depois de sua primeira aplicação. O
+  arquivo publicado foi restaurado byte a byte ao checksum daquele SQLite
+  (`1617ADF38E69528743AE170C2D96C1544E5FE4E1C43784C104DAA8F1089FAB098DFF734928DBD6A76663CCB5D3926AA2`),
+  preservando aquele banco sem recriação ou edição manual.
+- Validações: 51 testes TypeScript/React, 11 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check, Clippy, build Tauri release e abertura
+  nativa com o banco existente aprovados.
+- Commit: `não commitado`.
+- Resultado: ajustes incorporados ao Checkpoint Git 4, sem iniciar a Fase 4.
+
+### 28 de agosto de 2026 — Compatibilidade segura do release e do banco
+
+- O diagnóstico com redirecionamento de `stderr` mostrou que o release existente
+  incorporava a variante traduzida da migration 3, enquanto o banco ativo já
+  registrava o checksum canônico. O executável estava desatualizado em relação
+  ao arquivo restaurado.
+- Um novo build com a migration canônica abriu normalmente e confirmou no log
+  que os checksums já estavam atuais; nenhuma linha do banco precisou ser
+  alterada e nenhum backup de reparo foi criado nessa execução.
+- A migration canônica permaneceu imutável; nenhuma migration nova foi criada,
+  pois não há mudança de schema.
+- Como salvaguarda para um banco que possa ter sido criado pelo build alternativo,
+  uma verificação anterior ao plugin SQL passou a aceitar somente os dois hashes
+  conhecidos. Para a variante legada, ela verifica integridade, histórico,
+  schema completo e dados estruturais da versão 3.
+- Antes de qualquer reparo efetivo é criado um backup consistente em
+  `%APPDATA%\com.projectflow.desktop\backups\`. Uma transação altera somente o
+  checksum da migration 3; projetos, tarefas e dependências não entram em
+  nenhuma instrução de atualização.
+- Checksum, histórico ou schema inesperado falha de forma conservadora e sem
+  backup ou escrita.
+- Testes Rust cobrem os dois checksums, preservação dos dados no banco e no
+  backup, recusa de valor desconhecido e recusa de schema divergente.
+- A auditoria visual posterior encontrou o workspace vazio. A inspeção forense
+  confirmou zero registros ativos e localizou nos bytes não alocados somente um
+  projeto/tarefa anteriores à migration 3; os cinco itens relatados não foram
+  encontrados em nenhum SQLite do usuário, da Lixeira ou dos perfis de sistema.
+- Uma cópia binária do arquivo foi preservada em `.local/backups/` antes da
+  investigação; nenhuma restauração parcial foi feita sem confirmação do usuário.
+- ADR: 011 (compatibilidade controlada do checksum da migration 3).
+- Commit: `não commitado`.
+- Resultado: release volta a abrir e a investigação de recuperação permanece
+  separada do Checkpoint Git 4, sem iniciar a Fase 4.
+
+### 28 de agosto de 2026 — Base controlada para auditoria da Fase 3
+
+- Com autorização do usuário, o workspace vazio recebeu o projeto **Auditoria
+  do scheduler — Fase 3** com três tarefas-resumo e sete subtarefas.
+- O grafo contém oito relações FS e exercita cadeia, lag zero e positivo,
+  múltiplas predecessoras, feriado em 07/09, calendário **Todos os dias** e
+  conflito informativo de uma tarefa manual.
+- Uma cópia byte a byte do banco vazio foi criada antes do seed em
+  `.local/backups/projectflow-pre-phase3-seed-20260828.sqlite`.
+- A gravação ocorreu em uma única transação. `quick_check`, chaves estrangeiras,
+  contagens, datas calculadas e reabertura do release foram validados.
+- Depois da validação de persistência, uma cópia byte a byte do cenário pronto
+  foi criada em
+  `.local/backups/projectflow-phase3-audit-baseline-20260828.sqlite`, permitindo
+  restaurar o ponto inicial dos testes manuais sem depender de dados versionados.
+- O cenário e seus resultados esperados foram registrados em
+  `docs/scheduling.md` para orientar auditorias futuras.
+- Gates finais aprovados: 51 testes TypeScript/React, 16 testes Rust/SQLite,
+  lint, typecheck, build web, Cargo fmt/check e Clippy.
+- A base continua local e ignorada pelo Git; código-fonte, migrations e testes
+  não dependem dela.
+- Commit: `não commitado`.
+- Resultado: existe novamente uma base real e reproduzível por descrição para a
+  inspeção final do Checkpoint Git 4, sem iniciar a Fase 4.
+
+### 28 de agosto de 2026 — Banco único para desenvolvimento e release local
+
+- A abertura manual do release revelou que as cinco tarefas originais estavam
+  preservadas no `AppData` real do usuário.
+- O processo iniciado pelo Codex havia recebido a virtualização de `AppData` do
+  pacote desktop e, por isso, enxergava uma segunda base com o cenário de
+  auditoria. O executável e seu código eram os mesmos; o contexto do Windows era
+  diferente.
+- Builds debug e o novo release local de teste passaram a compartilhar
+  `.local/data/projectflow.sqlite`. Builds de distribuição continuam usando o
+  diretório oficial do perfil.
+- A primeira abertura manual preserva o banco recuperado com `VACUUM INTO`,
+  verifica origem, backup e cópia, e nunca sobrescreve uma base compartilhada
+  existente.
+- `npm run tauri:build:test` ativa a feature Cargo `shared-dev-data`; o binário
+  resultante é apenas para auditoria no checkout local.
+- Validações aprovadas: 51 testes TypeScript/React, 20 testes Rust/SQLite,
+  typecheck, lint, build web, Cargo fmt/check, Clippy e build release local com a
+  feature compartilhada.
+- ADR: 012 (banco compartilhado para desenvolvimento e release local de teste).
+- Commit: `não commitado`.
+- Resultado: eliminada a divergência de dados entre usuário e agente sem mudar o
+  schema ou iniciar a Fase 4.
+
+### 28 de agosto de 2026 — Correção do release local de auditoria
+
+- A primeira versão do script chamou `cargo build` diretamente e gerou o
+  binário nativo com a feature correta, mas sem o pipeline do Tauri. Sem o Vite,
+  a janela tentou acessar `localhost:1420` e exibiu
+  `ERR_CONNECTION_REFUSED`.
+- O script passou a usar
+  `tauri build --no-bundle --features shared-dev-data`, que executa o build web
+  configurado e incorpora `frontendDist` ao executável.
+- A primeira abertura havia importado o banco recuperado, não o baseline de
+  auditoria. Ele foi preservado em
+  `.local/backups/projectflow-recovered-user-data-before-audit-switch-20260828.sqlite`
+  e a base compartilhada recebeu o cenário **Auditoria do scheduler — Fase 3**.
+- Hashes, conteúdo das duas bases e reabertura foram conferidos. O novo
+  `project-flow.exe` iniciou sem servidor Vite, permaneceu responsivo e não
+  produziu saída de erro.
+- Commit: `não commitado`.
+- Resultado: release local com frontend incorporado e apontando para a mesma
+  base de testes de `tauri dev`, sem perda do banco recuperado.
 
 ## Regras permanentes de acompanhamento
 

@@ -16,9 +16,9 @@ Cada calendário possui um conjunto normalizado de dias úteis, representados de
 1 a 7, de segunda a domingo. O calendário padrão é criado com os dias 1 a 5.
 Sábado e domingo podem ser incluídos no mesmo modelo.
 
-A tela de configuração, feriados, exceções e as funções de cálculo pertencem à
-Fase 3. O scheduler não deverá presumir que sábado e domingo são sempre dias não
-úteis; deverá consultar o calendário associado ao projeto.
+A Fase 3 implementa a tela de configuração, feriados, exceções e as funções de
+cálculo. O scheduler não presume que sábado e domingo são sempre dias não
+úteis; consulta o calendário efetivo da tarefa conforme detalhado no ADR 010.
 
 ## Consequências
 

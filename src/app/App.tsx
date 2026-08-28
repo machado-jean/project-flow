@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { ProjectHeader } from "../features/projects/ProjectHeader";
+import { CalendarSettings } from "../features/projects/CalendarSettings";
 import { ProjectSidebar } from "../features/projects/ProjectSidebar";
 import { TaskTable } from "../features/table/TaskTable";
 import { TauriWorkspaceRepository } from "../repositories/tauri-workspace-repository";
@@ -25,6 +26,9 @@ function App({ repository }: AppProps) {
         );
   const selectedProjectIndex = projectPeers.findIndex(
     (project) => project.id === workspace.selectedProjectId,
+  );
+  const selectedCalendar = workspace.calendars.find(
+    (calendar) => calendar.id === workspace.selectedProject?.calendarId,
   );
 
   return (
@@ -70,13 +74,29 @@ function App({ repository }: AppProps) {
               onMove={workspace.moveProject}
               onDelete={workspace.removeProject}
             />
+            {selectedCalendar !== undefined ? (
+              <CalendarSettings
+                key={selectedCalendar.updatedAt}
+                calendar={selectedCalendar}
+                disabled={workspace.isSaving || workspace.selectedProject.isArchived}
+                onSave={workspace.saveCalendar}
+              />
+            ) : null}
             <TaskTable
               tasks={workspace.selectedProjectTasks}
+              calendars={workspace.calendars}
+              projectCalendarId={workspace.selectedProject.calendarId}
+              dependencies={workspace.selectedProjectDependencies}
+              conflicts={workspace.schedulingConflicts.filter((conflict) =>
+                workspace.selectedProjectTasks.some((task) => task.id === conflict.taskId),
+              )}
               disabled={workspace.isSaving || workspace.selectedProject.isArchived}
               onCreate={workspace.createTask}
               onSave={workspace.saveTask}
               onMove={workspace.moveTask}
               onDelete={workspace.removeTaskTree}
+              onCreateDependency={workspace.createDependency}
+              onDeleteDependency={workspace.removeDependency}
             />
           </div>
         )}

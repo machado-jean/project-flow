@@ -2,18 +2,37 @@ use tauri::State;
 use tauri_plugin_sql::{DbInstances, DbPool};
 
 use crate::{
-    database::DATABASE_URL,
-    persistence::{self, ProjectRecord, TaskRecord, WorkspaceData},
+    database,
+    persistence::{
+        self, CalendarRecord, ProjectRecord, ScheduleChangeSetRecord, TaskRecord, WorkspaceData,
+    },
 };
 
 async fn sqlite_pool(db_instances: &DbInstances) -> Result<sqlx::SqlitePool, String> {
     let instances = db_instances.0.read().await;
+    let database_url = database::database_url();
     let database = instances
-        .get(DATABASE_URL)
+        .get(&database_url)
         .ok_or_else(|| "O banco de dados do ProjectFlow não foi carregado.".to_owned())?;
 
     let DbPool::Sqlite(pool) = database;
     Ok(pool.clone())
+}
+
+#[tauri::command]
+pub fn database_url() -> String {
+    database::database_url()
+}
+
+#[tauri::command]
+pub async fn save_calendar(
+    db_instances: State<'_, DbInstances>,
+    calendar: CalendarRecord,
+) -> Result<(), String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    persistence::save_calendar(&pool, &calendar)
+        .await
+        .map_err(|error| format!("Não foi possível salvar o calendário: {error}"))
 }
 
 #[tauri::command]
@@ -77,6 +96,17 @@ pub async fn reorder_tasks(
     persistence::reorder_tasks(&pool, &task_ids)
         .await
         .map_err(|error| format!("Não foi possível reordenar as tarefas: {error}"))
+}
+
+#[tauri::command]
+pub async fn apply_schedule_changes(
+    db_instances: State<'_, DbInstances>,
+    changes: ScheduleChangeSetRecord,
+) -> Result<(), String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    persistence::apply_schedule_changes(&pool, &changes)
+        .await
+        .map_err(|error| format!("Não foi possível atualizar o cronograma: {error}"))
 }
 
 #[tauri::command]

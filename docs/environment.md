@@ -106,6 +106,7 @@ npm ci
 npm run check
 npm audit --audit-level=high
 npm run tauri:build -- --no-bundle
+npm run tauri:build:test
 
 cd src-tauri
 cargo fmt --all -- --check
@@ -114,4 +115,16 @@ cargo test --locked --all-targets
 cargo clippy --locked --all-targets -- -D warnings
 ```
 
-O build de release gerou `src-tauri/target/release/project-flow.exe`. A execução real do binário confirmou a abertura da aplicação, a criação/aplicação da migration no banco do perfil do usuário e a escrita do log local. A validação de instaladores MSI/NSIS e de uma máquina Windows limpa permanece reservada ao Checkpoint E.
+O build de distribuição sem feature mantém dados no perfil do usuário. O comando
+`npm run tauri:build:test` ativa a feature Cargo `shared-dev-data` e gera, no
+mesmo caminho, um executável estritamente local que compartilha
+`.local/data/projectflow.sqlite` com `tauri dev`. Internamente ele usa
+`tauri build --no-bundle --features shared-dev-data`, garantindo que o
+`beforeBuildCommand` seja executado e que `frontendDist` seja incorporado ao
+executável; executar apenas `cargo build` deixaria a janela dependente do
+`devUrl` em `localhost`. Cargo features são mecanismo
+estável [documentado pelo Rust](https://doc.rust-lang.org/stable/cargo/reference/features.html),
+e o [plugin SQL oficial](https://v2.tauri.app/plugin/sql/) resolve por padrão
+caminhos relativos contra `AppConfig`; por isso o modo local fornece uma URL
+absoluta e deliberada. A validação de instaladores MSI/NSIS e de uma máquina
+Windows limpa permanece reservada ao Checkpoint E.
