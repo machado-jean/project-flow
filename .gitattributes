@@ -1,0 +1,3 @@
+# SQLx checks migration integrity byte a byte. Keep published migrations
+# identical on Windows runners and developer worktrees.
+src-tauri/migrations/*.sql text eol=lf

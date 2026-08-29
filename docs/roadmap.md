@@ -568,6 +568,18 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Resultado: Fase 5 concluída localmente e Checkpoint Git 6 preparado; a Fase 6
   não foi iniciada.
 
+### 29 de agosto de 2026 — Normalização das migrations no CI Windows
+
+- O GitHub Actions expôs uma diferença de ambiente que não aparecia no
+  worktree local: `core.autocrlf=true` convertia a migration 3 de `LF` para
+  `CRLF` durante o checkout e alterava seu checksum SHA-384.
+- `.gitattributes` passou a fixar `LF` exclusivamente para
+  `src-tauri/migrations/*.sql`, garantindo bytes idênticos entre máquinas sem
+  editar migrations publicadas nem bancos existentes.
+- A falha era do teste de integridade do repositório, não do SQLite nem dos
+  dados. O checksum canônico da migration 3 permanece inalterado.
+- Commit: `não commitado`; nenhuma nova execução remota foi disparada.
+
 ## Regras permanentes de acompanhamento
 
 - Ler `AGENTS.md` e este documento antes de iniciar uma mudança não trivial.

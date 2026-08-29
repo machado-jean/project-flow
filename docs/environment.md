@@ -105,6 +105,10 @@ Instalação global:
 - O host do Codex foi aberto antes das instalações e manteve um `PATH` antigo em alguns subprocessos. O `PATH` persistente do usuário contém `C:\Users\jeanm\.cargo\bin`; abrir um novo terminal elimina essa particularidade.
 - `winget` não estava disponível, por isso foram usados diretamente os instaladores oficiais.
 - O runtime SQLite é incorporado à aplicação; não foi instalado um SQLite CLI global.
+- `.gitattributes` força `LF` em `src-tauri/migrations/*.sql`. O SQLx calcula o
+  checksum das migrations byte a byte; sem essa regra, um checkout Windows com
+  `core.autocrlf=true` convertia os arquivos para `CRLF` e fazia o CI rejeitar
+  uma migration canônica mesmo sem alteração semântica.
 - O scaffold oficial removeu `AGENTS.md` ao usar `--force`; o arquivo foi restaurado imediatamente e seu hash voltou a coincidir exatamente com `HEAD`.
 
 ## Validação final
