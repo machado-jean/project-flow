@@ -4,8 +4,8 @@ ProjectFlow é uma aplicação desktop local-first para planejamento de projetos
 
 ## Estado atual
 
-As Fases 0 a 4 estão concluídas localmente e a Fase 4 está pronta para o
-Checkpoint Git 5. O recorte funcional atual contém:
+As Fases 0 a 5 estão concluídas localmente e a Fase 5 está pronta para o
+Checkpoint Git 6. O recorte funcional atual contém:
 
 - Tauri 2, React, TypeScript e Vite;
 - SQLite embarcado com migrations versionadas;
@@ -30,10 +30,14 @@ Checkpoint Git 5. O recorte funcional atual contém:
   semana, feriados, foco de dependência e edição temporal segura;
 - sincronização imediata entre Tabela, Kanban e Gantt;
 - janela principal maximizada na inicialização;
+- duplicação de tarefa isolada, árvore completa e projeto, sempre com novos UUIDs;
+- preservação somente das dependências internas ao conteúdo duplicado;
+- biblioteca global de templates de árvores, com aplicação em qualquer projeto
+  e data de início escolhida;
 - interface integralmente em português.
 
-Templates, duplicação e importação/exportação ainda não foram implementados e
-permanecem nas fases seguintes. A Fase 5 não foi iniciada.
+Importação, exportação e backup/restore ainda não foram implementados e
+permanecem na Fase 6.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -52,6 +56,7 @@ Documentação principal:
 - [modelo de dados](docs/data-model.md);
 - [scheduler e calendário](docs/scheduling.md);
 - [Tabela, Kanban, Gantt e auditoria manual](docs/views.md);
+- [duplicação, templates e auditoria manual](docs/reuse.md);
 - [roadmap e histórico](docs/roadmap.md);
 - [importação/exportação planejada](docs/import-export.md);
 - [decisões arquiteturais](docs/decisions/).
@@ -128,9 +133,9 @@ npm run tauri:build:test
 O resultado fica em `src-tauri\target\release\project-flow.exe`. Não distribuir
 esse binário, pois ele referencia a `.local` do checkout em que foi compilado.
 
-No fechamento da Fase 4, `npm run check` aprovou lint, typecheck e **69 testes
-TypeScript/React**; a suíte nativa aprovou **20 testes Rust/SQLite**. O build web,
-Cargo fmt/check, Clippy e o release local também foram validados.
+No fechamento da Fase 5, os números e gates finais estão registrados em
+[docs/environment.md](docs/environment.md). O release local de auditoria é
+regerado no mesmo caminho e preserva o banco compartilhado de desenvolvimento.
 
 Para validar futuramente o comportamento de distribuição sem gerar instaladores:
 

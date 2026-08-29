@@ -5,6 +5,12 @@ import { validateCalendar } from "../domain/calendars/calendar";
 import { validateProject } from "../domain/projects/project";
 import { validateTaskDependency } from "../domain/scheduling/dependency";
 import { validateTask } from "../domain/tasks/task";
+import {
+  validateTaskTemplateBundle,
+  validateTaskTemplateDependency,
+  validateTaskTemplateItem,
+  validateTaskTemplate,
+} from "../domain/templates/template";
 import type {
   ScheduleChangeSet,
   WorkspaceRepository,
@@ -25,6 +31,20 @@ export class TauriWorkspaceRepository implements WorkspaceRepository {
     const snapshot = await invoke<WorkspaceSnapshot>("load_workspace");
 
     const tasks = snapshot.tasks.map(validateTask);
+    const templates = snapshot.templates.map(validateTaskTemplate);
+    const templateItems = snapshot.templateItems.map(validateTaskTemplateItem);
+    const templateDependencies = snapshot.templateDependencies.map(
+      validateTaskTemplateDependency,
+    );
+    for (const template of templates) {
+      validateTaskTemplateBundle({
+        template,
+        items: templateItems.filter((item) => item.templateId === template.id),
+        dependencies: templateDependencies.filter(
+          (dependency) => dependency.templateId === template.id,
+        ),
+      });
+    }
     return {
       calendars: snapshot.calendars.map(validateCalendar),
       projects: snapshot.projects.map(validateProject),
@@ -32,6 +52,9 @@ export class TauriWorkspaceRepository implements WorkspaceRepository {
       dependencies: snapshot.dependencies.map((dependency) =>
         validateTaskDependency(dependency, tasks),
       ),
+      templates,
+      templateItems,
+      templateDependencies,
     };
   }
 
@@ -73,5 +96,30 @@ export class TauriWorkspaceRepository implements WorkspaceRepository {
 
   async deleteTaskTree(taskId: string): Promise<void> {
     await invoke("delete_task_tree", { taskId });
+  }
+
+  async saveDuplicationBundle(
+    bundle: Parameters<WorkspaceRepository["saveDuplicationBundle"]>[0],
+  ): Promise<void> {
+    const tasks = bundle.tasks.map(validateTask);
+    await invoke("save_duplication_bundle", {
+      bundle: {
+        project: bundle.project === null ? null : validateProject(bundle.project),
+        tasks,
+        dependencies: bundle.dependencies.map((dependency) =>
+          validateTaskDependency(dependency, tasks),
+        ),
+      },
+    });
+  }
+
+  async saveTemplateBundle(
+    bundle: Parameters<WorkspaceRepository["saveTemplateBundle"]>[0],
+  ): Promise<void> {
+    await invoke("save_template_bundle", { bundle: validateTaskTemplateBundle(bundle) });
+  }
+
+  async deleteTemplate(templateId: string): Promise<void> {
+    await invoke("delete_template", { templateId });
   }
 }

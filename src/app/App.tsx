@@ -4,6 +4,7 @@ import { ProjectHeader } from "../features/projects/ProjectHeader";
 import { CalendarSettings } from "../features/projects/CalendarSettings";
 import { ProjectSidebar } from "../features/projects/ProjectSidebar";
 import { ProjectViews } from "../features/views/ProjectViews";
+import { TemplateLibrary } from "../features/templates/TemplateLibrary";
 import { TauriWorkspaceRepository } from "../repositories/tauri-workspace-repository";
 import type { WorkspaceRepository } from "../repositories/workspace-repository";
 import { useWorkspace } from "../state/use-workspace";
@@ -73,6 +74,7 @@ function App({ repository }: AppProps) {
               onSave={workspace.saveProject}
               onMove={workspace.moveProject}
               onDelete={workspace.removeProject}
+              onDuplicate={workspace.duplicateProject}
             />
             {selectedCalendar !== undefined ? (
               <CalendarSettings
@@ -82,6 +84,14 @@ function App({ repository }: AppProps) {
                 onSave={workspace.saveCalendar}
               />
             ) : null}
+            <TemplateLibrary
+              templates={workspace.templates}
+              items={workspace.templateItems}
+              projectName={workspace.selectedProject.name}
+              disabled={workspace.isSaving || workspace.selectedProject.isArchived}
+              onApply={workspace.applyTemplate}
+              onDelete={workspace.removeTemplate}
+            />
             <ProjectViews
               tasks={workspace.selectedProjectTasks}
               calendars={workspace.calendars}
@@ -97,6 +107,8 @@ function App({ repository }: AppProps) {
               onDelete={workspace.removeTaskTree}
               onCreateDependency={workspace.createDependency}
               onDeleteDependency={workspace.removeDependency}
+              onDuplicateTask={workspace.duplicateTask}
+              onCreateTemplate={workspace.createTemplate}
             />
           </div>
         )}

@@ -21,7 +21,10 @@ pub fn run() {
             commands::save_task,
             commands::reorder_tasks,
             commands::apply_schedule_changes,
-            commands::delete_task_tree
+            commands::delete_task_tree,
+            commands::save_duplication_bundle,
+            commands::save_template_bundle,
+            commands::delete_template
         ])
         .plugin(migration_compatibility::init())
         .plugin(

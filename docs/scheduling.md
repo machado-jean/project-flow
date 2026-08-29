@@ -153,7 +153,7 @@ tarefas `MANUAL` não são alteradas e seus avisos são reconstruídos.
 | resultado múltiplo e rollback transacional | testes TypeScript e Rust |
 | datas não úteis explícitas | testes de scheduler e UI |
 | calendário contínuo no fim de semana | testes de calendário, scheduler e UI |
-| grafo recriado com identidades independentes | teste de scheduler; duplicação funcional pertence à Fase 5 |
+| grafo recriado com identidades independentes | testes de reutilização, UI e persistência SQLite da Fase 5 |
 
 ## Cenário manual de auditoria
 
@@ -187,7 +187,6 @@ nenhum dos sentidos; quando sua data viola a relação, deve apenas exibir o avi
 - dependências SS, FF e SF;
 - dependências entre projetos;
 - inferência de uma data anterior após remover a última predecessora;
-- duplicação de tarefa/projeto, cuja implementação pertence à Fase 5;
 - caminho crítico e nivelamento de recursos continuam fora do Gantt da Fase 4;
 - drag/resize direto nas barras permanece desabilitado: edições temporais usam
   o painel do ProjectFlow para respeitar este scheduler.

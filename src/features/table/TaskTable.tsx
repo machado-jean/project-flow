@@ -45,6 +45,12 @@ interface TaskTableProps {
   readonly onDelete: (taskId: string) => Promise<boolean>;
   readonly onCreateDependency: (input: { readonly predecessorId: string; readonly successorId: string; readonly lagDays: number }) => Promise<TaskDependency | null>;
   readonly onDeleteDependency: (dependencyId: string) => Promise<boolean>;
+  readonly onDuplicate: (taskId: string, includeDescendants: boolean) => Promise<Task | null>;
+  readonly onCreateTemplate: (input: {
+    readonly rootTaskId: string;
+    readonly name: string;
+    readonly description: string | null;
+  }) => Promise<unknown>;
 }
 
 interface DependencyLagEditorProps {
@@ -188,6 +194,8 @@ interface TaskRowProps {
   readonly onDelete: () => void;
   readonly onCreateDependency: TaskTableProps["onCreateDependency"];
   readonly onDeleteDependency: TaskTableProps["onDeleteDependency"];
+  readonly onDuplicate: (includeDescendants: boolean) => void;
+  readonly onPrepareTemplate: () => void;
 }
 
 function TaskRow({
@@ -212,6 +220,8 @@ function TaskRow({
   onDelete,
   onCreateDependency,
   onDeleteDependency,
+  onDuplicate,
+  onPrepareTemplate,
 }: TaskRowProps) {
   const [draft, setDraft] = useState(row.task);
   const [tagsText, setTagsText] = useState(row.task.tags.join(", "));
@@ -356,6 +366,15 @@ function TaskRow({
             <label className="wide-detail">Descrição<textarea disabled={disabled} rows={2} value={draft.description ?? ""} onChange={(event) => { update({ description: event.target.value || null }); }} /></label>
             <label className="wide-detail">Observações<textarea disabled={disabled} rows={2} value={draft.notes ?? ""} onChange={(event) => { update({ notes: event.target.value || null }); }} /></label>
             {manualNonWorkingDate ? <p className="calendar-warning wide-detail">A tarefa manual usa uma data não útil. A data será preservada; escolha “Todos os dias” se ela deve participar automaticamente de fins de semana.</p> : null}
+            <div className="task-reuse-actions wide-detail">
+              <div>
+                <strong>Reutilização</strong>
+                <span>As cópias recebem novas identidades; relações externas não são copiadas.</span>
+              </div>
+              <button type="button" disabled={disabled} onClick={() => { onDuplicate(false); }}>Duplicar tarefa</button>
+              {row.hasChildren ? <button type="button" disabled={disabled} onClick={() => { onDuplicate(true); }}>Duplicar árvore</button> : null}
+              <button type="button" disabled={disabled} onClick={onPrepareTemplate}>Salvar árvore como template</button>
+            </div>
           </div>
         </td>
       </tr>
@@ -378,11 +397,16 @@ export function TaskTable({
   onDelete,
   onCreateDependency,
   onDeleteDependency,
+  onDuplicate,
+  onCreateTemplate,
 }: TaskTableProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newParentId, setNewParentId] = useState<string | null>(null);
   const [expandedTaskIds, setExpandedTaskIds] = useState<ReadonlySet<string>>(new Set());
   const [selectedTaskIds, setSelectedTaskIds] = useState<ReadonlySet<string>>(new Set());
+  const [templateSource, setTemplateSource] = useState<Task | null>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDescription, setTemplateDescription] = useState("");
   const titleInput = useRef<HTMLInputElement>(null);
   const forcedExpandedIds = new Set(
     tasks
@@ -417,6 +441,23 @@ export function TaskTable({
     titleInput.current?.focus();
   };
 
+  const prepareTemplate = (task: Task): void => {
+    setTemplateSource(task);
+    setTemplateName(task.title);
+    setTemplateDescription(task.description ?? "");
+  };
+
+  const saveTemplate = async (event: SyntheticEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    if (templateSource === null) return;
+    const created = await onCreateTemplate({
+      rootTaskId: templateSource.id,
+      name: templateName,
+      description: templateDescription || null,
+    });
+    if (created !== null) setTemplateSource(null);
+  };
+
   return (
     <section className="task-section" aria-labelledby="task-table-title">
       <div className="task-toolbar">
@@ -435,11 +476,29 @@ export function TaskTable({
             {visibleTasks.length === 0 ? <tr><td className="empty-table" colSpan={12}><strong>{tasks.length === 0 ? "Nenhuma tarefa ainda." : "Nenhuma tarefa corresponde aos filtros."}</strong><span>{tasks.length === 0 ? "Use o campo “Nova tarefa” para começar." : "Limpe ou ajuste os filtros para recuperar as linhas."}</span></td></tr> : visibleTasks.map((row) => {
               const siblings = tasks.filter((task) => task.projectId === row.task.projectId && task.parentId === row.task.parentId).sort((left, right) => left.position - right.position || left.createdAt.localeCompare(right.createdAt));
               const siblingIndex = siblings.findIndex((task) => task.id === row.task.id);
-              return <TaskRow key={`${row.task.id}-${row.task.updatedAt}`} row={row} outlineNumber={outlineNumbers.get(row.task.id) ?? ""} outlineNumbers={outlineNumbers} tasks={tasks} calendars={calendars} projectCalendarId={projectCalendarId} dependencies={dependencies} conflicts={conflicts} disabled={disabled} selected={selectedTaskIds.has(row.task.id)} expanded={effectiveExpandedIds.has(row.task.id)} canMoveUp={siblingIndex > 0} canMoveDown={siblingIndex >= 0 && siblingIndex < siblings.length - 1} onSelect={(selected) => { setSelectedTaskIds((current) => { const next = new Set(current); if (selected) next.add(row.task.id); else next.delete(row.task.id); return next; }); }} onToggleExpanded={() => { setExpandedTaskIds((current) => { const next = new Set(current); if (next.has(row.task.id)) next.delete(row.task.id); else next.add(row.task.id); return next; }); }} onPrepareSubtask={() => { prepareSubtask(row.task.id); }} onSave={onSave} onMove={(direction) => { void onMove(row.task.id, direction); }} onCreateDependency={onCreateDependency} onDeleteDependency={onDeleteDependency} onDelete={() => { if (window.confirm(`Excluir “${row.task.title}” e todas as suas subtarefas? Esta ação não pode ser desfeita.`)) void onDelete(row.task.id); }} />;
+              return <TaskRow key={`${row.task.id}-${row.task.updatedAt}`} row={row} outlineNumber={outlineNumbers.get(row.task.id) ?? ""} outlineNumbers={outlineNumbers} tasks={tasks} calendars={calendars} projectCalendarId={projectCalendarId} dependencies={dependencies} conflicts={conflicts} disabled={disabled} selected={selectedTaskIds.has(row.task.id)} expanded={effectiveExpandedIds.has(row.task.id)} canMoveUp={siblingIndex > 0} canMoveDown={siblingIndex >= 0 && siblingIndex < siblings.length - 1} onSelect={(selected) => { setSelectedTaskIds((current) => { const next = new Set(current); if (selected) next.add(row.task.id); else next.delete(row.task.id); return next; }); }} onToggleExpanded={() => { setExpandedTaskIds((current) => { const next = new Set(current); if (next.has(row.task.id)) next.delete(row.task.id); else next.add(row.task.id); return next; }); }} onPrepareSubtask={() => { prepareSubtask(row.task.id); }} onSave={onSave} onMove={(direction) => { void onMove(row.task.id, direction); }} onCreateDependency={onCreateDependency} onDeleteDependency={onDeleteDependency} onDuplicate={(includeDescendants) => { void onDuplicate(row.task.id, includeDescendants).then((copy) => { if (copy !== null && includeDescendants) setExpandedTaskIds((current) => new Set([...current, copy.id])); }); }} onPrepareTemplate={() => { prepareTemplate(row.task); }} onDelete={() => { if (window.confirm(`Excluir “${row.task.title}” e todas as suas subtarefas? Esta ação não pode ser desfeita.`)) void onDelete(row.task.id); }} />;
             })}
           </tbody>
         </table>
       </div>
+      {templateSource === null ? null : (
+        <div className="dialog-backdrop" role="presentation">
+          <section className="template-dialog" role="dialog" aria-modal="true" aria-labelledby="template-dialog-title">
+            <div>
+              <h2 id="template-dialog-title">Salvar árvore como template</h2>
+              <p>“{templateSource.title}” e suas subtarefas ficarão disponíveis em todo o workspace.</p>
+            </div>
+            <form onSubmit={(event) => { void saveTemplate(event); }}>
+              <label>Nome<input required autoFocus value={templateName} disabled={disabled} onChange={(event) => { setTemplateName(event.target.value); }} /></label>
+              <label>Descrição<textarea rows={3} value={templateDescription} disabled={disabled} onChange={(event) => { setTemplateDescription(event.target.value); }} /></label>
+              <div className="dialog-actions">
+                <button type="button" disabled={disabled} onClick={() => { setTemplateSource(null); }}>Cancelar</button>
+                <button className="primary-button" type="submit" disabled={disabled}>Salvar template</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </section>
   );
 }

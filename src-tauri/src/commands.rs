@@ -4,7 +4,8 @@ use tauri_plugin_sql::{DbInstances, DbPool};
 use crate::{
     database,
     persistence::{
-        self, CalendarRecord, ProjectRecord, ScheduleChangeSetRecord, TaskRecord, WorkspaceData,
+        self, CalendarRecord, DuplicationBundleRecord, ProjectRecord, ScheduleChangeSetRecord,
+        TaskRecord, TaskTemplateBundleRecord, WorkspaceData,
     },
 };
 
@@ -118,4 +119,37 @@ pub async fn delete_task_tree(
     persistence::delete_task_tree(&pool, &task_id)
         .await
         .map_err(|error| format!("Não foi possível excluir a tarefa: {error}"))
+}
+
+#[tauri::command]
+pub async fn save_duplication_bundle(
+    db_instances: State<'_, DbInstances>,
+    bundle: DuplicationBundleRecord,
+) -> Result<(), String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    persistence::save_duplication_bundle(&pool, &bundle)
+        .await
+        .map_err(|error| format!("Não foi possível duplicar a estrutura: {error}"))
+}
+
+#[tauri::command]
+pub async fn save_template_bundle(
+    db_instances: State<'_, DbInstances>,
+    bundle: TaskTemplateBundleRecord,
+) -> Result<(), String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    persistence::save_template_bundle(&pool, &bundle)
+        .await
+        .map_err(|error| format!("Não foi possível salvar o template: {error}"))
+}
+
+#[tauri::command]
+pub async fn delete_template(
+    db_instances: State<'_, DbInstances>,
+    template_id: String,
+) -> Result<(), String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    persistence::delete_template(&pool, &template_id)
+        .await
+        .map_err(|error| format!("Não foi possível excluir o template: {error}"))
 }

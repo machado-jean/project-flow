@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect, type PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,13 @@ import type { Project } from "../../../src/domain/projects/project";
 import type { Task } from "../../../src/domain/tasks/task";
 import type { TaskDependency } from "../../../src/domain/scheduling/dependency";
 import type {
+  TaskTemplate,
+  TaskTemplateBundle,
+  TaskTemplateDependency,
+  TaskTemplateItem,
+} from "../../../src/domain/templates/template";
+import type {
+  DuplicationBundle,
   ScheduleChangeSet,
   WorkspaceRepository,
   WorkspaceSnapshot,
@@ -159,6 +166,9 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
   readonly projects: Project[];
   readonly tasks: Task[];
   readonly dependencies: TaskDependency[];
+  readonly templates: TaskTemplate[];
+  readonly templateItems: TaskTemplateItem[];
+  readonly templateDependencies: TaskTemplateDependency[];
   readonly appliedScheduleChanges: ScheduleChangeSet[] = [];
 
   constructor(snapshot: Partial<WorkspaceSnapshot> = {}) {
@@ -166,6 +176,9 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
     this.projects = [...(snapshot.projects ?? [])];
     this.tasks = [...(snapshot.tasks ?? [])];
     this.dependencies = [...(snapshot.dependencies ?? [])];
+    this.templates = [...(snapshot.templates ?? [])];
+    this.templateItems = [...(snapshot.templateItems ?? [])];
+    this.templateDependencies = [...(snapshot.templateDependencies ?? [])];
   }
 
   load(): Promise<WorkspaceSnapshot> {
@@ -174,6 +187,9 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
       projects: [...this.projects],
       tasks: [...this.tasks],
       dependencies: [...this.dependencies],
+      templates: [...this.templates],
+      templateItems: [...this.templateItems],
+      templateDependencies: [...this.templateDependencies],
     });
   }
 
@@ -253,6 +269,51 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
     for (let index = this.tasks.length - 1; index >= 0; index -= 1) {
       const candidate = this.tasks[index];
       if (candidate !== undefined && removed.has(candidate.id)) this.tasks.splice(index, 1);
+    }
+    return Promise.resolve();
+  }
+
+  async saveDuplicationBundle(bundle: DuplicationBundle): Promise<void> {
+    if (bundle.project !== null) await this.saveProject(bundle.project);
+    for (const task of bundle.tasks) await this.saveTask(task);
+    for (const dependency of bundle.dependencies) {
+      const index = this.dependencies.findIndex((candidate) => candidate.id === dependency.id);
+      if (index === -1) this.dependencies.push(dependency);
+      else this.dependencies[index] = dependency;
+    }
+  }
+
+  saveTemplateBundle(bundle: TaskTemplateBundle): Promise<void> {
+    const templateIndex = this.templates.findIndex(
+      (candidate) => candidate.id === bundle.template.id,
+    );
+    if (templateIndex === -1) this.templates.push(bundle.template);
+    else this.templates[templateIndex] = bundle.template;
+    for (let index = this.templateItems.length - 1; index >= 0; index -= 1) {
+      if (this.templateItems[index]?.templateId === bundle.template.id) {
+        this.templateItems.splice(index, 1);
+      }
+    }
+    for (let index = this.templateDependencies.length - 1; index >= 0; index -= 1) {
+      if (this.templateDependencies[index]?.templateId === bundle.template.id) {
+        this.templateDependencies.splice(index, 1);
+      }
+    }
+    this.templateItems.push(...bundle.items);
+    this.templateDependencies.push(...bundle.dependencies);
+    return Promise.resolve();
+  }
+
+  deleteTemplate(templateId: string): Promise<void> {
+    const templateIndex = this.templates.findIndex((candidate) => candidate.id === templateId);
+    if (templateIndex >= 0) this.templates.splice(templateIndex, 1);
+    for (let index = this.templateItems.length - 1; index >= 0; index -= 1) {
+      if (this.templateItems[index]?.templateId === templateId) this.templateItems.splice(index, 1);
+    }
+    for (let index = this.templateDependencies.length - 1; index >= 0; index -= 1) {
+      if (this.templateDependencies[index]?.templateId === templateId) {
+        this.templateDependencies.splice(index, 1);
+      }
     }
     return Promise.resolve();
   }
@@ -778,5 +839,118 @@ describe("aplicação ProjectFlow", () => {
       target: { value: "" },
     });
     expect(screen.getByLabelText("Dependência em foco")).toHaveValue("");
+  });
+
+  it("duplica uma árvore e preserva somente sua dependência interna", async () => {
+    const root = scheduledTask(TASK_ID, "Entrega", "2026-08-28", {
+      endDate: "2026-08-31",
+      durationDays: 2,
+    });
+    const first = scheduledTask(SECOND_TASK_ID, "Preparar", "2026-08-28", {
+      parentId: root.id,
+      position: 0,
+    });
+    const second = scheduledTask(THIRD_TASK_ID, "Executar", "2026-08-31", {
+      parentId: root.id,
+      position: 1,
+    });
+    const relation = dependency(first.id, second.id);
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [root, first, second],
+      dependencies: [relation],
+    });
+    render(<App repository={repository} />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "Detalhes" }))[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar árvore" }));
+
+    await waitFor(() => {
+      expect(repository.tasks).toHaveLength(6);
+      expect(repository.dependencies).toHaveLength(2);
+    });
+    const copiedIds = new Set(repository.tasks.slice(3).map(({ id }) => id));
+    expect([...copiedIds].some((id) => [root.id, first.id, second.id].includes(id))).toBe(false);
+    expect(copiedIds.has(repository.dependencies[1]?.predecessorId ?? "")).toBe(true);
+    expect(copiedIds.has(repository.dependencies[1]?.successorId ?? "")).toBe(true);
+  });
+
+  it("duplica um projeto completo e seleciona a cópia independente", async () => {
+    const first = scheduledTask(TASK_ID, "Preparar", "2026-08-28");
+    const second = scheduledTask(SECOND_TASK_ID, "Executar", "2026-08-31", { position: 1 });
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [first, second],
+      dependencies: [dependency(first.id, second.id)],
+    });
+    render(<App repository={repository} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Duplicar projeto" }));
+
+    await waitFor(() => {
+      expect(repository.projects).toHaveLength(2);
+      expect(screen.getByLabelText("Nome do projeto")).toHaveValue("Projeto Alfa — cópia");
+    });
+    expect(repository.tasks).toHaveLength(4);
+    expect(repository.dependencies).toHaveLength(2);
+    expect(repository.tasks.slice(2).every((candidate) => candidate.projectId === repository.projects[1]?.id)).toBe(true);
+  });
+
+  it("salva, aplica e exclui um template global sem alterar tarefas aplicadas", async () => {
+    const root = scheduledTask(TASK_ID, "Entrega", "2026-08-28", {
+      endDate: "2026-08-31",
+      durationDays: 2,
+    });
+    const first = scheduledTask(SECOND_TASK_ID, "Preparar", "2026-08-28", {
+      parentId: root.id,
+      position: 0,
+      priority: "HIGH",
+      tags: ["modelo"],
+      assignee: "Jean",
+      progress: 40,
+    });
+    const second = scheduledTask(THIRD_TASK_ID, "Executar", "2026-08-31", {
+      parentId: root.id,
+      position: 1,
+      tags: ["modelo"],
+    });
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [root, first, second],
+      dependencies: [dependency(first.id, second.id)],
+    });
+    render(<App repository={repository} />);
+
+    fireEvent.click((await screen.findAllByRole("button", { name: "Detalhes" }))[0] as HTMLElement);
+    fireEvent.click(screen.getByRole("button", { name: "Salvar árvore como template" }));
+    const templateDialog = screen.getByRole("dialog", { name: "Salvar árvore como template" });
+    fireEvent.change(within(templateDialog).getByLabelText("Nome"), { target: { value: "Entrega padrão" } });
+    fireEvent.change(within(templateDialog).getByLabelText("Descrição"), {
+      target: { value: "Fluxo reutilizável" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar template" }));
+
+    await waitFor(() => { expect(repository.templates).toHaveLength(1); });
+    fireEvent.click(screen.getByText("Templates"));
+    fireEvent.change(screen.getByLabelText("Data inicial"), {
+      target: { value: "2026-09-04" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Aplicar" }));
+
+    await waitFor(() => {
+      expect(repository.tasks).toHaveLength(6);
+      expect(repository.dependencies).toHaveLength(2);
+    });
+    const applied = repository.tasks.slice(3);
+    expect(applied.every((candidate) => candidate.progress === 0)).toBe(true);
+    expect(applied.every((candidate) => candidate.assignee === null)).toBe(true);
+    expect(applied.find((candidate) => candidate.title === "Executar")?.startDate).toBe("2026-09-07");
+
+    vi.spyOn(window, "confirm").mockReturnValueOnce(true);
+    const templateCard = screen.getByText("Entrega padrão").closest("li");
+    expect(templateCard).not.toBeNull();
+    fireEvent.click(within(templateCard as HTMLElement).getByRole("button", { name: "Excluir" }));
+    await waitFor(() => { expect(repository.templates).toHaveLength(0); });
+    expect(repository.tasks).toHaveLength(6);
   });
 });

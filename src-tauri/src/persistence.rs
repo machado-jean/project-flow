@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
@@ -88,6 +88,69 @@ pub struct DependencyRecord {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskTemplateRecord {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskTemplateItemRecord {
+    pub id: String,
+    pub template_id: String,
+    pub parent_id: Option<String>,
+    pub title: String,
+    pub description: Option<String>,
+    pub duration_days: Option<i64>,
+    pub priority: String,
+    pub initial_status: String,
+    pub position: i64,
+    pub created_at: String,
+    pub updated_at: String,
+    #[sqlx(skip)]
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskTemplateDependencyRecord {
+    pub id: String,
+    pub template_id: String,
+    pub predecessor_id: String,
+    pub successor_id: String,
+    #[sqlx(rename = "dependency_type")]
+    #[serde(rename = "type")]
+    pub dependency_type: String,
+    pub lag_days: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DuplicationBundleRecord {
+    pub project: Option<ProjectRecord>,
+    #[serde(default)]
+    pub tasks: Vec<TaskRecord>,
+    #[serde(default)]
+    pub dependencies: Vec<DependencyRecord>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskTemplateBundleRecord {
+    pub template: TaskTemplateRecord,
+    pub items: Vec<TaskTemplateItemRecord>,
+    #[serde(default)]
+    pub dependencies: Vec<TaskTemplateDependencyRecord>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduleChangeSetRecord {
@@ -110,6 +173,9 @@ pub struct WorkspaceData {
     pub projects: Vec<ProjectRecord>,
     pub tasks: Vec<TaskRecord>,
     pub dependencies: Vec<DependencyRecord>,
+    pub templates: Vec<TaskTemplateRecord>,
+    pub template_items: Vec<TaskTemplateItemRecord>,
+    pub template_dependencies: Vec<TaskTemplateDependencyRecord>,
 }
 
 #[derive(FromRow)]
@@ -121,6 +187,12 @@ struct WorkingDayRow {
 #[derive(FromRow)]
 struct TaskTagRow {
     task_id: String,
+    tag_name: String,
+}
+
+#[derive(FromRow)]
+struct TemplateTaskTagRow {
+    template_item_id: String,
     tag_name: String,
 }
 
@@ -210,11 +282,56 @@ pub async fn load_workspace(pool: &SqlitePool) -> Result<WorkspaceData, sqlx::Er
     .fetch_all(pool)
     .await?;
 
+    let templates = sqlx::query_as::<_, TaskTemplateRecord>(
+        "SELECT id, name, description, created_at, updated_at FROM task_templates \
+         ORDER BY name COLLATE NOCASE, created_at",
+    )
+    .fetch_all(pool)
+    .await?;
+    let mut template_items = sqlx::query_as::<_, TaskTemplateItemRecord>(
+        "SELECT id, template_id, parent_id, title, description, duration_days, priority, \
+         initial_status, position, created_at, updated_at FROM task_template_items \
+         ORDER BY template_id, parent_id, position, created_at",
+    )
+    .fetch_all(pool)
+    .await?;
+    let template_tags = sqlx::query_as::<_, TemplateTaskTagRow>(
+        "SELECT template_item_id, tag_name FROM task_template_tags \
+         ORDER BY template_item_id, tag_name COLLATE NOCASE",
+    )
+    .fetch_all(pool)
+    .await?;
+    let tags_by_template_item =
+        template_tags
+            .into_iter()
+            .fold(HashMap::<String, Vec<String>>::new(), |mut tags, row| {
+                tags.entry(row.template_item_id)
+                    .or_default()
+                    .push(row.tag_name);
+                tags
+            });
+    for item in &mut template_items {
+        item.tags = tags_by_template_item
+            .get(&item.id)
+            .cloned()
+            .unwrap_or_default();
+    }
+    let template_dependencies = sqlx::query_as::<_, TaskTemplateDependencyRecord>(
+        "SELECT id, template_id, predecessor_id, successor_id, dependency_type, lag_days, \
+         created_at, updated_at FROM task_template_dependencies \
+         ORDER BY template_id, created_at, id",
+    )
+    .fetch_all(pool)
+    .await?;
+
     Ok(WorkspaceData {
         calendars,
         projects,
         tasks,
         dependencies,
+        templates,
+        template_items,
+        template_dependencies,
     })
 }
 
@@ -285,6 +402,16 @@ async fn save_calendar_record(
 }
 
 pub async fn save_project(pool: &SqlitePool, project: &ProjectRecord) -> Result<(), sqlx::Error> {
+    let mut transaction = pool.begin().await?;
+    save_project_record(&mut transaction, project).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn save_project_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    project: &ProjectRecord,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO projects (
             id, name, description, status, calendar_id, position, is_archived, created_at, updated_at
@@ -307,7 +434,7 @@ pub async fn save_project(pool: &SqlitePool, project: &ProjectRecord) -> Result<
     .bind(project.is_archived)
     .bind(&project.created_at)
     .bind(&project.updated_at)
-    .execute(pool)
+    .execute(&mut **transaction)
     .await?;
 
     Ok(())
@@ -448,6 +575,164 @@ async fn save_dependency_record(
     Ok(())
 }
 
+pub async fn save_duplication_bundle(
+    pool: &SqlitePool,
+    bundle: &DuplicationBundleRecord,
+) -> Result<(), sqlx::Error> {
+    let mut transaction = pool.begin().await?;
+    if let Some(project) = &bundle.project {
+        save_project_record(&mut transaction, project).await?;
+    }
+    for task in &bundle.tasks {
+        save_task_record(&mut transaction, task).await?;
+    }
+    for dependency in &bundle.dependencies {
+        save_dependency_record(&mut transaction, dependency).await?;
+    }
+    cleanup_orphan_tags(&mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+async fn save_template_item_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    item: &TaskTemplateItemRecord,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO task_template_items (
+            id, template_id, parent_id, title, description, duration_days, priority,
+            initial_status, position, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&item.id)
+    .bind(&item.template_id)
+    .bind(&item.parent_id)
+    .bind(&item.title)
+    .bind(&item.description)
+    .bind(item.duration_days)
+    .bind(&item.priority)
+    .bind(&item.initial_status)
+    .bind(item.position)
+    .bind(&item.created_at)
+    .bind(&item.updated_at)
+    .execute(&mut **transaction)
+    .await?;
+
+    let mut unique_tags = HashMap::<String, String>::new();
+    for raw_tag in &item.tags {
+        let tag = raw_tag.trim();
+        if !tag.is_empty() {
+            unique_tags.insert(tag.to_lowercase(), tag.to_owned());
+        }
+    }
+    for tag in unique_tags.values() {
+        sqlx::query("INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING")
+            .bind(tag)
+            .execute(&mut **transaction)
+            .await?;
+        sqlx::query("INSERT INTO task_template_tags (template_item_id, tag_name) VALUES (?, ?)")
+            .bind(&item.id)
+            .bind(tag)
+            .execute(&mut **transaction)
+            .await?;
+    }
+    Ok(())
+}
+
+async fn save_template_dependency_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    dependency: &TaskTemplateDependencyRecord,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO task_template_dependencies (
+            id, template_id, predecessor_id, successor_id, dependency_type, lag_days,
+            created_at, updated_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&dependency.id)
+    .bind(&dependency.template_id)
+    .bind(&dependency.predecessor_id)
+    .bind(&dependency.successor_id)
+    .bind(&dependency.dependency_type)
+    .bind(dependency.lag_days)
+    .bind(&dependency.created_at)
+    .bind(&dependency.updated_at)
+    .execute(&mut **transaction)
+    .await?;
+    Ok(())
+}
+
+pub async fn save_template_bundle(
+    pool: &SqlitePool,
+    bundle: &TaskTemplateBundleRecord,
+) -> Result<(), sqlx::Error> {
+    let mut transaction = pool.begin().await?;
+    sqlx::query(
+        "INSERT INTO task_templates (id, name, description, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            description = excluded.description,
+            updated_at = excluded.updated_at",
+    )
+    .bind(&bundle.template.id)
+    .bind(&bundle.template.name)
+    .bind(&bundle.template.description)
+    .bind(&bundle.template.created_at)
+    .bind(&bundle.template.updated_at)
+    .execute(&mut *transaction)
+    .await?;
+    sqlx::query("DELETE FROM task_template_items WHERE template_id = ?")
+        .bind(&bundle.template.id)
+        .execute(&mut *transaction)
+        .await?;
+
+    let mut inserted = HashSet::<String>::new();
+    let mut remaining: Vec<&TaskTemplateItemRecord> = bundle.items.iter().collect();
+    while !remaining.is_empty() {
+        let previous_length = remaining.len();
+        let mut pending = Vec::new();
+        for item in remaining {
+            if item
+                .parent_id
+                .as_ref()
+                .is_none_or(|parent_id| inserted.contains(parent_id))
+            {
+                save_template_item_record(&mut transaction, item).await?;
+                inserted.insert(item.id.clone());
+            } else {
+                pending.push(item);
+            }
+        }
+        if pending.len() == previous_length {
+            return Err(sqlx::Error::Protocol(
+                "A hierarquia do template contém pai ausente ou ciclo.".into(),
+            ));
+        }
+        remaining = pending;
+    }
+    for dependency in &bundle.dependencies {
+        save_template_dependency_record(&mut transaction, dependency).await?;
+    }
+    cleanup_orphan_tags(&mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+pub async fn delete_template(pool: &SqlitePool, template_id: &str) -> Result<(), sqlx::Error> {
+    let mut transaction = pool.begin().await?;
+    let result = sqlx::query("DELETE FROM task_templates WHERE id = ?")
+        .bind(template_id)
+        .execute(&mut *transaction)
+        .await?;
+    if result.rows_affected() != 1 {
+        return Err(sqlx::Error::RowNotFound);
+    }
+    cleanup_orphan_tags(&mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
 pub async fn apply_schedule_changes(
     pool: &SqlitePool,
     changes: &ScheduleChangeSetRecord,
@@ -525,6 +810,8 @@ async fn cleanup_orphan_tags(
     sqlx::query(
         "DELETE FROM tags WHERE NOT EXISTS (
             SELECT 1 FROM task_tags WHERE task_tags.tag_name = tags.name
+         ) AND NOT EXISTS (
+            SELECT 1 FROM task_template_tags WHERE task_template_tags.tag_name = tags.name
          )",
     )
     .execute(&mut **transaction)
@@ -538,11 +825,14 @@ mod tests {
     use sqlx::SqlitePool;
 
     use super::{
-        apply_schedule_changes, delete_project, delete_task_tree, load_workspace, reorder_projects,
-        reorder_tasks, save_calendar, save_project, save_task, CalendarExceptionRecord,
-        CalendarRecord, DependencyRecord, ProjectRecord, ScheduleChangeSetRecord, TaskRecord,
+        apply_schedule_changes, delete_project, delete_task_tree, delete_template, load_workspace,
+        reorder_projects, reorder_tasks, save_calendar, save_duplication_bundle, save_project,
+        save_task, save_template_bundle, CalendarExceptionRecord, CalendarRecord, DependencyRecord,
+        DuplicationBundleRecord, ProjectRecord, ScheduleChangeSetRecord, TaskRecord,
+        TaskTemplateBundleRecord, TaskTemplateDependencyRecord, TaskTemplateItemRecord,
+        TaskTemplateRecord,
     };
-    use crate::database::{CORE_SCHEMA, INITIAL_SCHEMA, SCHEDULING_SCHEMA};
+    use crate::database::{CORE_SCHEMA, INITIAL_SCHEMA, REUSE_SCHEMA, SCHEDULING_SCHEMA};
 
     const PROJECT_ID: &str = "10000000-0000-4000-8000-000000000001";
     const TASK_ID: &str = "20000000-0000-4000-8000-000000000001";
@@ -567,6 +857,10 @@ mod tests {
             .execute(&pool)
             .await
             .expect("scheduling migration should execute");
+        sqlx::raw_sql(REUSE_SCHEMA)
+            .execute(&pool)
+            .await
+            .expect("reuse migration should execute");
         pool
     }
 
@@ -619,6 +913,76 @@ mod tests {
             lag_days: 0,
             created_at: NOW.into(),
             updated_at: NOW.into(),
+        }
+    }
+
+    fn template_bundle() -> TaskTemplateBundleRecord {
+        let template_id = "60000000-0000-4000-8000-000000000001";
+        let root_id = "70000000-0000-4000-8000-000000000001";
+        let first_id = "70000000-0000-4000-8000-000000000002";
+        let second_id = "70000000-0000-4000-8000-000000000003";
+        TaskTemplateBundleRecord {
+            template: TaskTemplateRecord {
+                id: template_id.into(),
+                name: "Entrega padrão".into(),
+                description: Some("Estrutura reutilizável".into()),
+                created_at: NOW.into(),
+                updated_at: NOW.into(),
+            },
+            items: vec![
+                TaskTemplateItemRecord {
+                    id: root_id.into(),
+                    template_id: template_id.into(),
+                    parent_id: None,
+                    title: "Entrega".into(),
+                    description: None,
+                    duration_days: None,
+                    priority: "NORMAL".into(),
+                    initial_status: "NOT_STARTED".into(),
+                    position: 0,
+                    created_at: NOW.into(),
+                    updated_at: NOW.into(),
+                    tags: vec![],
+                },
+                TaskTemplateItemRecord {
+                    id: first_id.into(),
+                    template_id: template_id.into(),
+                    parent_id: Some(root_id.into()),
+                    title: "Preparar".into(),
+                    description: None,
+                    duration_days: Some(1),
+                    priority: "HIGH".into(),
+                    initial_status: "NOT_STARTED".into(),
+                    position: 0,
+                    created_at: NOW.into(),
+                    updated_at: NOW.into(),
+                    tags: vec!["Modelo".into()],
+                },
+                TaskTemplateItemRecord {
+                    id: second_id.into(),
+                    template_id: template_id.into(),
+                    parent_id: Some(root_id.into()),
+                    title: "Executar".into(),
+                    description: None,
+                    duration_days: Some(2),
+                    priority: "NORMAL".into(),
+                    initial_status: "NOT_STARTED".into(),
+                    position: 1,
+                    created_at: NOW.into(),
+                    updated_at: NOW.into(),
+                    tags: vec!["Modelo".into()],
+                },
+            ],
+            dependencies: vec![TaskTemplateDependencyRecord {
+                id: "80000000-0000-4000-8000-000000000001".into(),
+                template_id: template_id.into(),
+                predecessor_id: first_id.into(),
+                successor_id: second_id.into(),
+                dependency_type: "FS".into(),
+                lag_days: 1,
+                created_at: NOW.into(),
+                updated_at: NOW.into(),
+            }],
         }
     }
 
@@ -903,5 +1267,65 @@ mod tests {
 
         let workspace = load_workspace(&pool).await.expect("workspace should load");
         assert!(workspace.dependencies.is_empty());
+    }
+
+    #[tokio::test]
+    async fn saves_loads_and_deletes_template_bundle_transactionally() {
+        let pool = database().await;
+        let bundle = template_bundle();
+
+        save_template_bundle(&pool, &bundle)
+            .await
+            .expect("template bundle should save");
+        let workspace = load_workspace(&pool).await.expect("workspace should load");
+        assert_eq!(workspace.templates.len(), 1);
+        assert_eq!(workspace.template_items.len(), 3);
+        assert_eq!(workspace.template_dependencies.len(), 1);
+        assert_eq!(workspace.template_items[1].tags, vec!["Modelo"]);
+
+        delete_template(&pool, &bundle.template.id)
+            .await
+            .expect("template should delete");
+        let workspace = load_workspace(&pool).await.expect("workspace should load");
+        assert!(workspace.templates.is_empty());
+        assert!(workspace.template_items.is_empty());
+        assert!(workspace.template_dependencies.is_empty());
+        let tag_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tags")
+            .fetch_one(&pool)
+            .await
+            .expect("tag count should load");
+        assert_eq!(tag_count, 0);
+    }
+
+    #[tokio::test]
+    async fn duplication_bundle_rolls_back_project_tasks_and_relations_together() {
+        let pool = database().await;
+        let duplicated_project = project();
+        let predecessor = task(TASK_ID, None);
+        let successor = task(CHILD_ID, None);
+        let mut invalid_dependency = dependency();
+        invalid_dependency.successor_id = "20000000-0000-4000-8000-999999999999".into();
+
+        let result = save_duplication_bundle(
+            &pool,
+            &DuplicationBundleRecord {
+                project: Some(duplicated_project),
+                tasks: vec![predecessor, successor],
+                dependencies: vec![invalid_dependency],
+            },
+        )
+        .await;
+        assert!(result.is_err());
+
+        let project_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM projects")
+            .fetch_one(&pool)
+            .await
+            .expect("project count should load");
+        let task_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM tasks")
+            .fetch_one(&pool)
+            .await
+            .expect("task count should load");
+        assert_eq!(project_count, 0);
+        assert_eq!(task_count, 0);
     }
 }

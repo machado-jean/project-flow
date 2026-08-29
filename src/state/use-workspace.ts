@@ -9,6 +9,12 @@ import {
   endDateForDuration,
   onOrNextWorkingDay,
 } from "../domain/calendars/working-calendar";
+import {
+  applyTaskTemplate,
+  createTemplateFromTaskTree,
+  duplicateProject as duplicateProjectStructure,
+  duplicateTaskTree,
+} from "../domain/duplication/reuse";
 import { validateProject, type Project, type ProjectStatus } from "../domain/projects/project";
 import {
   validateTaskDependency,
@@ -30,6 +36,12 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../domain/tasks/task";
+import type {
+  TaskTemplate,
+  TaskTemplateBundle,
+  TaskTemplateDependency,
+  TaskTemplateItem,
+} from "../domain/templates/template";
 import type { WorkspaceRepository } from "../repositories/workspace-repository";
 
 interface CreateProjectInput {
@@ -48,6 +60,12 @@ interface DependencyInput {
   readonly lagDays: number;
 }
 
+interface CreateTemplateInput {
+  readonly rootTaskId: string;
+  readonly name: string;
+  readonly description: string | null;
+}
+
 export type MoveDirection = "up" | "down";
 
 export interface WorkspaceController {
@@ -55,6 +73,9 @@ export interface WorkspaceController {
   readonly projects: readonly Project[];
   readonly tasks: readonly Task[];
   readonly dependencies: readonly TaskDependency[];
+  readonly templates: readonly TaskTemplate[];
+  readonly templateItems: readonly TaskTemplateItem[];
+  readonly templateDependencies: readonly TaskTemplateDependency[];
   readonly schedulingConflicts: readonly SchedulingConflict[];
   readonly selectedProjectId: string | null;
   readonly selectedProject: Project | null;
@@ -80,6 +101,11 @@ export interface WorkspaceController {
   readonly createDependency: (input: DependencyInput) => Promise<TaskDependency | null>;
   readonly saveDependency: (dependency: TaskDependency) => Promise<boolean>;
   readonly removeDependency: (dependencyId: string) => Promise<boolean>;
+  readonly duplicateTask: (taskId: string, includeDescendants: boolean) => Promise<Task | null>;
+  readonly duplicateProject: (projectId: string) => Promise<Project | null>;
+  readonly createTemplate: (input: CreateTemplateInput) => Promise<TaskTemplate | null>;
+  readonly applyTemplate: (templateId: string, startDate: string) => Promise<Task | null>;
+  readonly removeTemplate: (templateId: string) => Promise<boolean>;
 }
 
 function errorMessage(error: unknown): string {
@@ -195,6 +221,9 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
   const [projects, setProjects] = useState<readonly Project[]>([]);
   const [tasks, setTasks] = useState<readonly Task[]>([]);
   const [dependencies, setDependencies] = useState<readonly TaskDependency[]>([]);
+  const [templates, setTemplates] = useState<readonly TaskTemplate[]>([]);
+  const [templateItems, setTemplateItems] = useState<readonly TaskTemplateItem[]>([]);
+  const [templateDependencies, setTemplateDependencies] = useState<readonly TaskTemplateDependency[]>([]);
   const [schedulingConflicts, setSchedulingConflicts] = useState<readonly SchedulingConflict[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -250,6 +279,9 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
         setProjects(snapshot.projects);
         setTasks(reconciledTasks);
         setDependencies(snapshot.dependencies);
+        setTemplates(snapshot.templates);
+        setTemplateItems(snapshot.templateItems);
+        setTemplateDependencies(snapshot.templateDependencies);
         setSchedulingConflicts(loadedConflicts);
         setSelectedProjectId(
           snapshot.projects.find((project) => !project.isArchived)?.id ??
@@ -854,6 +886,196 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
     [calendars, dependencies, projects, repository, runMutation, tasks],
   );
 
+  const duplicateTask = useCallback(
+    async (taskId: string, includeDescendants: boolean): Promise<Task | null> =>
+      runMutation(async () => {
+        const source = tasks.find((task) => task.id === taskId);
+        if (source === undefined) throw new Error("A tarefa selecionada não existe.");
+        const project = projects.find((candidate) => candidate.id === source.projectId);
+        if (project === undefined) throw new Error("O projeto da tarefa não existe.");
+        const projectTasks = tasks.filter((task) => task.projectId === source.projectId);
+        const projectDependencies = dependencies.filter(
+          (dependency) => dependency.projectId === source.projectId,
+        );
+        const rootPosition = nextPosition(
+          projectTasks.filter((task) => task.parentId === source.parentId),
+        );
+        const timestamp = nowUtc();
+        const duplicated = duplicateTaskTree({
+          tasks: projectTasks,
+          dependencies: projectDependencies,
+          rootTaskId: taskId,
+          includeDescendants,
+          rootPosition,
+          idFactory: () => crypto.randomUUID(),
+          timestamp,
+        });
+        const nextDependencies = [...projectDependencies, ...duplicated.dependencies];
+        const nextProjectTasks = [...projectTasks, ...duplicated.tasks];
+        validateGraph(nextProjectTasks, nextDependencies);
+        const scheduled = rescheduleAffectedTasks({
+          tasks: nextProjectTasks,
+          dependencies: nextDependencies,
+          calendars,
+          projectCalendarId: project.calendarId,
+          changedTaskIds: duplicated.tasks.map((task) => task.id),
+        });
+        const persistIds = new Set([
+          ...duplicated.tasks.map((task) => task.id),
+          ...scheduled.changedTaskIds,
+        ]);
+        const persistedProjectTasks = stampedScheduledTasks(
+          scheduled.tasks,
+          persistIds,
+          timestamp,
+        );
+        await repository.saveDuplicationBundle({
+          project: null,
+          tasks: persistedProjectTasks.filter((task) => persistIds.has(task.id)),
+          dependencies: duplicated.dependencies,
+        });
+        setTasks((current) => replaceTasks(current, persistedProjectTasks));
+        setDependencies((current) => [...current, ...duplicated.dependencies]);
+        setSchedulingConflicts((current) =>
+          replaceProjectConflicts(
+            current,
+            new Set(persistedProjectTasks.map(({ id }) => id)),
+            projectSchedulingConflicts(project, persistedProjectTasks, nextDependencies, calendars),
+          ),
+        );
+        const copiedRootId = duplicated.sourceToCopyId.get(taskId);
+        return persistedProjectTasks.find((task) => task.id === copiedRootId) ?? null;
+      }),
+    [calendars, dependencies, projects, repository, runMutation, tasks],
+  );
+
+  const duplicateProject = useCallback(
+    async (projectId: string): Promise<Project | null> =>
+      runMutation(async () => {
+        const source = projects.find((project) => project.id === projectId);
+        if (source === undefined) throw new Error("O projeto selecionado não existe.");
+        const timestamp = nowUtc();
+        const duplicated = duplicateProjectStructure({
+          project: source,
+          tasks,
+          dependencies,
+          position: nextPosition(projects.filter((project) => !project.isArchived)),
+          idFactory: () => crypto.randomUUID(),
+          timestamp,
+        });
+        await repository.saveDuplicationBundle({
+          project: duplicated.project,
+          tasks: duplicated.tasks,
+          dependencies: duplicated.dependencies,
+        });
+        setProjects((current) => [...current, duplicated.project]);
+        setTasks((current) => [...current, ...duplicated.tasks]);
+        setDependencies((current) => [...current, ...duplicated.dependencies]);
+        setSelectedProjectId(duplicated.project.id);
+        return duplicated.project;
+      }),
+    [dependencies, projects, repository, runMutation, tasks],
+  );
+
+  const createTemplate = useCallback(
+    async (input: CreateTemplateInput): Promise<TaskTemplate | null> =>
+      runMutation(async () => {
+        const timestamp = nowUtc();
+        const bundle = createTemplateFromTaskTree({
+          ...input,
+          tasks,
+          dependencies,
+          idFactory: () => crypto.randomUUID(),
+          timestamp,
+        });
+        await repository.saveTemplateBundle(bundle);
+        setTemplates((current) => [...current, bundle.template]);
+        setTemplateItems((current) => [...current, ...bundle.items]);
+        setTemplateDependencies((current) => [...current, ...bundle.dependencies]);
+        return bundle.template;
+      }),
+    [dependencies, repository, runMutation, tasks],
+  );
+
+  const applyTemplate = useCallback(
+    async (templateId: string, startDate: string): Promise<Task | null> => {
+      if (selectedProjectId === null) {
+        setError("Selecione um projeto antes de aplicar um template.");
+        return null;
+      }
+      return runMutation(async () => {
+        const template = templates.find((candidate) => candidate.id === templateId);
+        const project = projects.find((candidate) => candidate.id === selectedProjectId);
+        if (template === undefined) throw new Error("O template selecionado não existe.");
+        if (project === undefined) throw new Error("O projeto de destino não existe.");
+        const bundle: TaskTemplateBundle = {
+          template,
+          items: templateItems.filter((item) => item.templateId === templateId),
+          dependencies: templateDependencies.filter(
+            (dependency) => dependency.templateId === templateId,
+          ),
+        };
+        const timestamp = nowUtc();
+        const applied = applyTaskTemplate({
+          bundle,
+          targetProject: project,
+          calendars,
+          startDate,
+          rootPosition: nextPosition(
+            tasks.filter(
+              (task) => task.projectId === selectedProjectId && task.parentId === null,
+            ),
+          ),
+          idFactory: () => crypto.randomUUID(),
+          timestamp,
+        });
+        await repository.saveDuplicationBundle({
+          project: null,
+          tasks: applied.tasks,
+          dependencies: applied.dependencies,
+        });
+        setTasks((current) => [...current, ...applied.tasks]);
+        setDependencies((current) => [...current, ...applied.dependencies]);
+        setSchedulingConflicts((current) => [
+          ...current,
+          ...projectSchedulingConflicts(project, applied.tasks, applied.dependencies, calendars),
+        ]);
+        const root = applied.tasks.find((task) => task.parentId === null);
+        return root ?? null;
+      });
+    },
+    [
+      calendars,
+      projects,
+      repository,
+      runMutation,
+      selectedProjectId,
+      tasks,
+      templateDependencies,
+      templateItems,
+      templates,
+    ],
+  );
+
+  const removeTemplate = useCallback(
+    async (templateId: string): Promise<boolean> => {
+      const result = await runMutation(async () => {
+        if (!templates.some((template) => template.id === templateId)) {
+          throw new Error("O template selecionado não existe.");
+        }
+        await repository.deleteTemplate(templateId);
+        setTemplates((current) => current.filter((template) => template.id !== templateId));
+        setTemplateItems((current) => current.filter((item) => item.templateId !== templateId));
+        setTemplateDependencies((current) =>
+          current.filter((dependency) => dependency.templateId !== templateId),
+        );
+        return true;
+      });
+      return result ?? false;
+    },
+    [repository, runMutation, templates],
+  );
+
   const selectedProject = projects.find((project) => project.id === selectedProjectId) ?? null;
   const selectedProjectTasks = useMemo(
     () => tasks.filter((task) => task.projectId === selectedProjectId),
@@ -869,6 +1091,9 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
     projects,
     tasks,
     dependencies,
+    templates,
+    templateItems,
+    templateDependencies,
     schedulingConflicts,
     selectedProjectId,
     selectedProject,
@@ -891,6 +1116,11 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
     createDependency,
     saveDependency,
     removeDependency,
+    duplicateTask,
+    duplicateProject,
+    createTemplate,
+    applyTemplate,
+    removeTemplate,
   };
 }
 

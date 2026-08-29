@@ -101,6 +101,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .calendar-exception-form .working-exception-toggle input { min-height: auto; }
 .muted-text { color: #8995a3; font-size: 9px; }
 
+.template-library { margin: 10px 26px 0; background: #fff; border: 1px solid #dce2e9; border-radius: 9px; }
+.template-library > summary { display: flex; align-items: center; gap: 8px; padding: 10px 14px; color: #344253; cursor: pointer; font-size: 12px; font-weight: 680; }
+.template-count { display: grid; min-width: 20px; height: 20px; place-items: center; color: #315f9d; background: #e8f0fb; border-radius: 10px; font-size: 9px; }
+.template-summary-help { margin-left: auto; color: #8290a0; font-size: 10px; font-weight: 500; }
+.template-library-content { display: grid; gap: 10px; padding: 12px 14px 14px; border-top: 1px solid #edf0f3; }
+.template-library-heading h2 { margin: 0; color: #344253; font-size: 13px; }
+.template-library-heading p, .template-empty { margin: 4px 0 0; color: #748193; font-size: 10px; }
+.template-list { display: grid; gap: 7px; padding: 0; margin: 0; list-style: none; }
+.template-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 11px; background: #f8fafc; border: 1px solid #e2e7ed; border-radius: 7px; }
+.template-card-copy { display: grid; min-width: 180px; gap: 2px; }
+.template-card-copy strong { color: #334155; font-size: 11px; }
+.template-card-copy span, .template-card-copy small { color: #7b8796; font-size: 9px; }
+.template-card form { display: flex; align-items: flex-end; gap: 7px; }
+.template-card form label { display: grid; gap: 3px; color: #6d7a8a; font-size: 9px; font-weight: 650; }
+.template-card form input { min-height: 34px; padding: 6px 8px; background: #fff; border: 1px solid #cfd7e1; border-radius: 6px; font-size: 10px; }
+
 .task-section { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 20px 26px 28px; }
 .task-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 12px; }
 .task-toolbar h2 { margin: 0; color: #273444; font-size: 15px; }
@@ -143,6 +159,22 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .task-details-row > td[colspan] { padding: 0 8px 10px; }
 .task-details { display: grid; width: min(720px, 100%); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 10px; background: #f7f9fb; border: 1px solid #e2e7ed; border-radius: 7px; }
 .task-details label { display: grid; gap: 4px; color: #6c7887; font-size: 9px; font-weight: 650; }
+.task-reuse-actions { display: flex; align-items: center; gap: 6px; padding-top: 9px; border-top: 1px solid #dfe5eb; }
+.task-reuse-actions > div { display: grid; min-width: 210px; margin-right: auto; }
+.task-reuse-actions strong { color: #48576a; font-size: 10px; }
+.task-reuse-actions span { color: #8290a0; font-size: 8px; }
+.task-reuse-actions button { min-height: 29px; padding: 5px 8px; color: #43566e; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 9px; font-weight: 650; }
+.task-reuse-actions button:hover:not(:disabled) { color: #1d4ed8; background: #f5f8ff; border-color: #9bb7e9; }
+
+.dialog-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgb(15 23 42 / 42%); }
+.template-dialog { width: min(470px, 100%); padding: 20px; background: #fff; border: 1px solid #d5dde7; border-radius: 11px; box-shadow: 0 22px 55px rgb(15 23 42 / 24%); }
+.template-dialog h2 { margin: 0; color: #263445; font-size: 17px; }
+.template-dialog p { margin: 5px 0 16px; color: #748193; font-size: 11px; line-height: 1.45; }
+.template-dialog form { display: grid; gap: 11px; }
+.template-dialog label { display: grid; gap: 5px; color: #5f6e7f; font-size: 10px; font-weight: 680; }
+.template-dialog input, .template-dialog textarea { width: 100%; padding: 8px 9px; background: #fff; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 11px; resize: vertical; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 3px; }
+.dialog-actions button { min-height: 34px; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 7px; font-size: 11px; font-weight: 650; }
 .task-details input, .task-details select, .task-details textarea { width: 100%; padding: 6px; background: #fff; border: 1px solid #cfd7e1; border-radius: 5px; font-size: 10px; resize: vertical; }
 .wide-detail { grid-column: span 2; }
 .detail-label { display: flex; align-items: center; gap: 5px; }

@@ -14,7 +14,7 @@ use tauri::{plugin::TauriPlugin, Manager, Runtime};
 
 use crate::database::{
     database_backup_dir, database_path, uses_shared_development_database, CORE_SCHEMA,
-    DATABASE_FILENAME, DATABASE_SCHEMA_VERSION, INITIAL_SCHEMA, SCHEDULING_SCHEMA,
+    DATABASE_FILENAME, INITIAL_SCHEMA, SCHEDULING_MIGRATION_VERSION, SCHEDULING_SCHEMA,
 };
 
 const LEGACY_SUMMARY_DEPENDENCY_MESSAGE: &str = "tarefas-resumo não podem possuir dependências";
@@ -209,16 +209,16 @@ pub(crate) async fn repair_known_migration_drift(
     let canonical_checksum = migration_checksum(Cow::Borrowed(SCHEDULING_SCHEMA));
     let applied_scheduling_checksum = applied_migrations
         .iter()
-        .find(|migration| migration.version == DATABASE_SCHEMA_VERSION)
+        .find(|migration| migration.version == SCHEDULING_MIGRATION_VERSION)
         .ok_or_else(|| {
             MigrationCompatibilityError::new(format!(
-                "a migration {DATABASE_SCHEMA_VERSION} não está registrada no banco"
+                "a migration {SCHEDULING_MIGRATION_VERSION} não está registrada no banco"
             ))
         })?;
 
     if !applied_scheduling_checksum.success {
         return Err(MigrationCompatibilityError::new(format!(
-            "a migration {DATABASE_SCHEMA_VERSION} está marcada como incompleta; o reparo automático foi cancelado"
+            "a migration {SCHEDULING_MIGRATION_VERSION} está marcada como incompleta; o reparo automático foi cancelado"
         )));
     }
 
@@ -230,7 +230,7 @@ pub(crate) async fn repair_known_migration_drift(
     let legacy_checksum = migration_checksum(Cow::Owned(legacy_schema.clone()));
     if applied_scheduling_checksum.checksum != legacy_checksum {
         return Err(MigrationCompatibilityError::new(format!(
-            "checksum desconhecido para a migration {DATABASE_SCHEMA_VERSION}: {}; nenhuma alteração foi realizada",
+            "checksum desconhecido para a migration {SCHEDULING_MIGRATION_VERSION}: {}; nenhuma alteração foi realizada",
             checksum_as_hex(&applied_scheduling_checksum.checksum)
         )));
     }
@@ -252,7 +252,7 @@ pub(crate) async fn repair_known_migration_drift(
          WHERE version = ? AND checksum = ? AND success = TRUE",
     )
     .bind(&canonical_checksum)
-    .bind(DATABASE_SCHEMA_VERSION)
+    .bind(SCHEDULING_MIGRATION_VERSION)
     .bind(&legacy_checksum)
     .execute(&mut *transaction)
     .await
@@ -277,7 +277,7 @@ pub(crate) async fn repair_known_migration_drift(
     let stored_checksum: Vec<u8> = sqlx::query_scalar(
         "SELECT checksum FROM _sqlx_migrations WHERE version = ? AND success = TRUE",
     )
-    .bind(DATABASE_SCHEMA_VERSION)
+    .bind(SCHEDULING_MIGRATION_VERSION)
     .fetch_one(&mut database)
     .await
     .map_err(|error| {
@@ -378,7 +378,10 @@ fn verify_complete_migration_history(
     let expected = [
         (1, migration_checksum(Cow::Borrowed(INITIAL_SCHEMA))),
         (2, migration_checksum(Cow::Borrowed(CORE_SCHEMA))),
-        (DATABASE_SCHEMA_VERSION, legacy_scheduling_checksum.to_vec()),
+        (
+            SCHEDULING_MIGRATION_VERSION,
+            legacy_scheduling_checksum.to_vec(),
+        ),
     ];
 
     if applied.len() != expected.len() {
@@ -575,7 +578,7 @@ async fn create_verified_backup(
         .and_then(|value| value.to_str())
         .unwrap_or("projectflow");
     let backup_path = backup_dir.join(format!(
-        "{stem}-before-migration-{DATABASE_SCHEMA_VERSION}-repair-{timestamp}.sqlite"
+        "{stem}-before-migration-{SCHEDULING_MIGRATION_VERSION}-repair-{timestamp}.sqlite"
     ));
     let backup_path_text = path_as_sqlite_text(&backup_path, "backup")?;
 
@@ -595,7 +598,7 @@ async fn create_verified_backup(
     let backup_migration_checksum: Vec<u8> = sqlx::query_scalar(
         "SELECT checksum FROM _sqlx_migrations WHERE version = ? AND success = TRUE",
     )
-    .bind(DATABASE_SCHEMA_VERSION)
+    .bind(SCHEDULING_MIGRATION_VERSION)
     .fetch_one(&mut backup)
     .await
     .map_err(|error| {
@@ -649,7 +652,7 @@ fn known_legacy_scheduling_schema() -> String {
 
 fn migration_checksum(sql: Cow<'static, str>) -> Vec<u8> {
     SqlxMigration::new(
-        DATABASE_SCHEMA_VERSION,
+        SCHEDULING_MIGRATION_VERSION,
         Cow::Borrowed("ProjectFlow migration compatibility"),
         MigrationType::Simple,
         sql,

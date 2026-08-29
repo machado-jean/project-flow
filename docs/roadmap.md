@@ -4,7 +4,7 @@ Este é o registro vivo de execução do ProjectFlow. Ele traduz o roadmap defin
 
 `AGENTS.md` continua sendo a fonte de verdade para produto, arquitetura e regras operacionais. Este documento não substitui a especificação e não deve introduzir escopo incompatível com ela.
 
-Última atualização: **28 de agosto de 2026**.
+Última atualização: **29 de agosto de 2026**.
 
 ## Como manter este documento
 
@@ -31,15 +31,15 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Views sincronizadas concluídas; Checkpoint Git 5 preparado |
-| Fase ativa | Nenhuma; Fase 4 pronta para commit local do usuário |
-| Próxima fase | Fase 5 — Reutilização, somente após aceite explícito |
+| Etapa do produto | Reutilização concluída; Checkpoint Git 6 preparado |
+| Fase ativa | Nenhuma; Fase 5 pronta para auditoria e commit do usuário |
+| Próxima fase | Fase 6 — Portabilidade, somente após aceite explícito |
 | Versão da aplicação | `0.1.0` |
-| Versão do schema SQLite | `3` |
-| Último commit estável | `6f02673` — `Implement ProjectFlow foundation and core task management` |
-| Branch de trabalho | `main`, com o Checkpoint Git 5 ainda não commitado |
+| Versão do schema SQLite | `4` |
+| Último commit estável | `36b2096` — `Implement ProjectFlow foundation and core task workflows` |
+| Branch de trabalho | `main`, com o Checkpoint Git 6 ainda não commitado |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
-| Funcionalidades de negócio | Project/Task, scheduler FS, filtros, Tabela, Kanban e Gantt implementados |
+| Funcionalidades de negócio | Core, scheduler, views, duplicação e templates implementados |
 
 ## Visão geral das fases
 
@@ -50,7 +50,7 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | 2 — Core | Implementar Project, Task, hierarquia e Tabela inicial | Concluída | 3 | Core persistido e editável com integridade e testes |
 | 3 — Scheduling | Implementar calendário, dependência FS e propagação | Concluída | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
 | 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Concluída | 5 | As views projetam a mesma tarefa sem duplicar dados |
-| 5 — Reutilização | Entregar duplicação e templates | Planejada | 6 | Árvores e relações internas são recriadas com novos UUIDs |
+| 5 — Reutilização | Entregar duplicação e templates | Concluída | 6 | Árvores e relações internas são recriadas com novos UUIDs |
 | 6 — Portabilidade | Entregar exportação, importação e backup | Planejada | 7 | Round-trip preserva semanticamente o workspace |
 | 7 — Hardening e distribuição | Preparar o produto para uso real no Windows | Planejada | 8 | Instalador e operação offline validados em máquina limpa |
 
@@ -172,18 +172,19 @@ decisões próprias e não fazem parte deste checkpoint.
 
 ## Fase 5 — Reutilização
 
-Estado: **Planejada**.
+Estado: **Concluída; pronta para auditoria e commit local**.
 
-- [ ] Duplicar tarefa isolada.
-- [ ] Duplicar tarefa com descendentes.
-- [ ] Reconstruir `parent_id` usando mapa de UUIDs.
-- [ ] Preservar dependências internas e omitir externas por padrão.
-- [ ] Duplicar projeto.
-- [ ] Criar, persistir e aplicar templates.
-- [ ] Validar o grafo antes de confirmar a transação.
-- [ ] Cobrir duplicação, identidade e rollback com testes.
+- [x] Duplicar tarefa isolada.
+- [x] Duplicar tarefa com descendentes.
+- [x] Reconstruir `parent_id` usando mapa de UUIDs.
+- [x] Preservar dependências internas e omitir externas por padrão.
+- [x] Duplicar projeto.
+- [x] Criar, persistir, aplicar e excluir templates globais.
+- [x] Validar hierarquia e grafo antes de confirmar a transação.
+- [x] Cobrir duplicação, identidade, persistência e rollback com testes.
 
-Critério de saída: cópias são independentes, mantêm estrutura interna válida e nunca compartilham identidade com a origem.
+Critério de saída atendido: cópias são independentes, mantêm estrutura interna
+válida, omitem relações externas e nunca compartilham identidade com a origem.
 
 ## Fase 6 — Portabilidade
 
@@ -227,8 +228,8 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 2 — SQLite + migrations + qualidade | Concluído | `7b41a4a` — fundação consolidada |
 | 3 — Project/Task core | Concluído | `1b3e9c6` |
 | 4 — Scheduler FS | Concluído | `6f02673` |
-| 5 — Tabela/Kanban/Gantt | Pronto para commit | entrega e documentação validadas, ainda não commitadas |
-| 6 — Duplicação/templates | Planejado | — |
+| 5 — Tabela/Kanban/Gantt | Concluído | `36b2096` |
+| 6 — Duplicação/templates | Pronto para commit | entrega local validada, ainda não commitada |
 | 7 — Export/import/backup | Planejado | — |
 | 8 — Empacotamento Windows | Planejado | — |
 
@@ -536,6 +537,36 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
   typecheck, build web, Cargo fmt/check, Clippy e release local aprovados.
 - Commit: `não commitado`; nenhuma operação remota foi executada.
 - Resultado: Fase 4 concluída e Checkpoint Git 5 pronto para commit do usuário.
+
+### 29 de agosto de 2026 — Fase 5: duplicação e templates
+
+- O domínio puro passou a duplicar tarefa isolada, árvore e projeto por meio de
+  mapas de UUID, reconstruindo pais e somente dependências internas.
+- A biblioteca global de templates captura árvores, durações, prioridades,
+  status inicial, tags e relações FS com lag. Cada aplicação cria entidades
+  independentes e usa a data e o projeto de destino escolhidos pelo usuário.
+- A migration `0004_reuse.sql` elevou o schema para 4 com tabelas relacionais,
+  índices, chaves estrangeiras e triggers para templates.
+- Duplicações e templates são persistidos em transações específicas; testes
+  cobrem banco novo, upgrade 3→4 preservando dados, rollback e exclusão sem
+  afetar tarefas já aplicadas.
+- A Tabela ganhou ações de reutilização no painel **Detalhes**, o cabeçalho
+  permite duplicar o projeto e a biblioteca **Templates** permite aplicar ou
+  excluir estruturas em qualquer projeto.
+- A decisão de templates globais no mesmo SQLite foi registrada no ADR 014. Um
+  backup integral do banco os preserva; a portabilidade `.projectflow` pertence
+  à Fase 6.
+- Auditoria manual: [reuse.md](reuse.md).
+- Gates aprovados: 78 testes TypeScript/React, 23 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check, Clippy, auditoria npm sem vulnerabilidades
+  e release Tauri local. A abertura real confirmou schema 4 no banco compartilhado.
+- O banco foi copiado antes da migration para um backup de hash idêntico em
+  `.local/backups/projectflow-before-schema4-20260829-1018.sqlite`.
+- Nenhuma dependência externa foi adicionada e nenhuma ferramenta global foi
+  instalada ou atualizada.
+- Commit: `não commitado`; nenhuma operação remota foi executada.
+- Resultado: Fase 5 concluída localmente e Checkpoint Git 6 preparado; a Fase 6
+  não foi iniciada.
 
 ## Regras permanentes de acompanhamento
 

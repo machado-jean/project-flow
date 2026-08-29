@@ -43,6 +43,12 @@ interface ProjectViewsProps {
     readonly lagDays: number;
   }) => Promise<TaskDependency | null>;
   readonly onDeleteDependency: (dependencyId: string) => Promise<boolean>;
+  readonly onDuplicateTask: (taskId: string, includeDescendants: boolean) => Promise<Task | null>;
+  readonly onCreateTemplate: (input: {
+    readonly rootTaskId: string;
+    readonly name: string;
+    readonly description: string | null;
+  }) => Promise<unknown>;
 }
 
 const VIEW_LABELS: Readonly<Record<ProjectView, string>> = {
@@ -64,6 +70,8 @@ export function ProjectViews({
   onDelete,
   onCreateDependency,
   onDeleteDependency,
+  onDuplicateTask,
+  onCreateTemplate,
 }: ProjectViewsProps) {
   const [activeView, setActiveView] = useState<ProjectView>("TABLE");
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_TASK_FILTERS);
@@ -127,6 +135,8 @@ export function ProjectViews({
             onDelete={onDelete}
             onCreateDependency={onCreateDependency}
             onDeleteDependency={onDeleteDependency}
+            onDuplicate={onDuplicateTask}
+            onCreateTemplate={onCreateTemplate}
           />
         ) : null}
         {activeView === "KANBAN" ? (

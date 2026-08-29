@@ -137,9 +137,14 @@ caminhos relativos contra `AppConfig`; por isso o modo local fornece uma URL
 absoluta e deliberada. A validação de instaladores MSI/NSIS e de uma máquina
 Windows limpa permanece reservada ao Checkpoint E.
 
-No fechamento da Fase 4, todos esses gates voltaram a ser executados: lint e
-typecheck aprovados, 69 testes TypeScript/React e 20 testes Rust/SQLite
+No fechamento da Fase 5, todos esses gates voltaram a ser executados: lint e
+typecheck aprovados, 78 testes TypeScript/React e 23 testes Rust/SQLite
 aprovados, build web concluído, Cargo fmt/check e Clippy sem erros, auditoria
 npm sem vulnerabilidades conhecidas e release local de teste gerado com o
-frontend incorporado. Nenhuma ferramenta global foi instalada ou atualizada na
-Fase 4; somente o SVAR React Gantt 2.7.1 foi acrescentado às dependências locais.
+frontend incorporado. A abertura nativa aplicou a migration 4 ao banco
+compartilhado e registrou `database schema 4` no log. Antes da migração foi
+criado o backup verificado
+`.local/backups/projectflow-before-schema4-20260829-1018.sqlite`, com o mesmo
+SHA-256 da origem (`4ACF477596010BD7D0BA8E23AE2271194BC631609B5C99E782D0DB0BEA1CDDB7`).
+Nenhuma ferramenta global, dependência npm ou crate foi instalada ou atualizada
+na Fase 5.

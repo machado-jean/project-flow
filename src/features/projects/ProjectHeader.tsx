@@ -16,6 +16,7 @@ interface ProjectHeaderProps {
   readonly onSave: (project: Project) => Promise<boolean>;
   readonly onMove: (projectId: string, direction: "up" | "down") => Promise<boolean>;
   readonly onDelete: (projectId: string) => Promise<boolean>;
+  readonly onDuplicate: (projectId: string) => Promise<Project | null>;
 }
 
 export function ProjectHeader({
@@ -27,6 +28,7 @@ export function ProjectHeader({
   onSave,
   onMove,
   onDelete,
+  onDuplicate,
 }: ProjectHeaderProps) {
   const [draft, setDraft] = useState(project);
   const [dirty, setDirty] = useState(false);
@@ -68,6 +70,7 @@ export function ProjectHeader({
           </select>
         </label>
         {dirty ? <button className="primary-button" type="button" disabled={disabled} onClick={() => void save()}>Salvar projeto</button> : null}
+        <button className="secondary-button" type="button" disabled={disabled} onClick={() => { void onDuplicate(project.id); }}>Duplicar projeto</button>
         <button className="secondary-button" type="button" disabled={disabled} onClick={() => { void onSave({ ...project, isArchived: !project.isArchived }); }}>
           {project.isArchived ? "Restaurar" : "Arquivar"}
         </button>

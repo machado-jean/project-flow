@@ -40,6 +40,13 @@ workspace. `TaskKanban` altera status pelo mesmo `onSave` e `TaskGantt` cria uma
 projeção transitória para a biblioteca SVAR. Não existem tabelas, repositories
 ou cópias persistidas específicas de view.
 
+A Fase 5 acrescenta `src/domain/duplication` e `src/domain/templates`. Os casos
+de uso geram mapas `old_id -> new_id`, recriam hierarquia e relações internas e
+validam o resultado antes de qualquer escrita. `useWorkspace` coordena a
+operação, enquanto os comandos nativos gravam cada duplicação ou template em
+uma única transação. A interface apenas coleta nome, descrição, destino e data
+de aplicação; ela não decide como identidades ou dependências são reconstruídas.
+
 A identificação estrutural (`1.`, `1.1.`, `1.1.1.`) também é uma projeção do
 domínio. `buildTaskOutlineNumbers` percorre a hierarquia ordenada e fornece os
 rótulos às três views. O número não é parte do título, do código visual nem do
@@ -48,10 +55,10 @@ schema; reordenar ou mudar o pai recalcula a identificação imediatamente.
 ## Persistência
 
 O plugin SQL oficial do Tauri abre o SQLite e aplica as migrations registradas.
-O schema atual é a versão 3: `0001_initial.sql` cria metadados técnicos,
+O schema atual é a versão 4: `0001_initial.sql` cria metadados técnicos,
 `0002_core.sql` introduz calendários, projetos, tarefas e tags, e
 `0003_scheduling.sql` acrescenta exceções, calendário opcional por tarefa e
-dependências FS.
+dependências FS. `0004_reuse.sql` cria as tabelas relacionais de templates.
 
 Migrations são registradas no processo nativo, aplicadas em transação pelo
 plugin e versionadas de forma crescente. O adapter carrega explicitamente a URL
@@ -83,6 +90,11 @@ Ao carregar, o estado reconcilia uma vez as cadeias automáticas e as
 tarefas-resumo. Somente diferenças reais são gravadas pelo mesmo comando
 transacional; tarefas manuais permanecem intactas e seus conflitos são
 reconstruídos para a interface.
+
+Duplicações usam `save_duplication_bundle`; o projeto, tarefas e dependências
+geradas são confirmados juntos. Templates usam `save_template_bundle`, também
+atômico. A exclusão de um template não altera tarefas que já foram aplicadas,
+pois cada aplicação gera entidades independentes.
 
 ## Fluxo do scheduler
 
