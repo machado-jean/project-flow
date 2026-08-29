@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { ProjectHeader } from "../features/projects/ProjectHeader";
 import { CalendarSettings } from "../features/projects/CalendarSettings";
 import { ProjectSidebar } from "../features/projects/ProjectSidebar";
-import { TaskTable } from "../features/table/TaskTable";
+import { ProjectViews } from "../features/views/ProjectViews";
 import { TauriWorkspaceRepository } from "../repositories/tauri-workspace-repository";
 import type { WorkspaceRepository } from "../repositories/workspace-repository";
 import { useWorkspace } from "../state/use-workspace";
@@ -82,7 +82,7 @@ function App({ repository }: AppProps) {
                 onSave={workspace.saveCalendar}
               />
             ) : null}
-            <TaskTable
+            <ProjectViews
               tasks={workspace.selectedProjectTasks}
               calendars={workspace.calendars}
               projectCalendarId={workspace.selectedProject.calendarId}

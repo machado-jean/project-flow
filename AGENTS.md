@@ -1042,29 +1042,30 @@ Com múltiplos predecessores, usar a restrição mais tardia.
 
 # 26. PROPAGAÇÃO
 
-Se uma tarefa AUTO for empurrada para frente:
+Se uma tarefa `AUTO` for deslocada por uma restrição FS mais tardia ou mais
+cedo:
 
 1. preservar duração;
-2. atualizar fim;
+2. atualizar início e fim;
 3. identificar sucessores;
-4. recalcular sucessores AUTO;
+4. recalcular sucessores `AUTO`;
 5. continuar em cascata;
 6. atualizar tarefas-resumo;
 7. persistir em transação.
 
 ---
 
-# 27. POLÍTICA CONSERVADORA
+# 27. POLÍTICA REATIVA PARA TAREFAS AUTO
 
-Na V1:
+Na V1, uma tarefa `AUTO` que possui predecessoras deve começar na restrição FS
+mais tardia calculada pelo scheduler. Mudanças nas predecessoras podem deslocar
+a sucessora tanto para frente quanto para trás, sempre preservando duração,
+calendário, lag e propagação em cascata.
 
-```text
-predecessores podem empurrar tarefas para frente
-```
-
-Não puxar automaticamente tarefas para trás quando uma restrição é removida ou fica mais cedo.
-
-Essa política pode ser revisada futuramente.
+Folgas intencionais entre tarefas devem ser representadas pelo lag. Tarefas
+`MANUAL` nunca são antecipadas ou atrasadas automaticamente. Ao remover a última
+predecessora, manter a data atual porque deixa de existir uma âncora para
+inferir uma nova data anterior.
 
 ---
 

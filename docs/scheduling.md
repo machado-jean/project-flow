@@ -84,12 +84,16 @@ O cálculo usa validação do grafo, ordenação topológica e somente o subgraf
 Para tarefa `AUTO`:
 
 1. calcular a restrição mais tardia;
-2. mover apenas quando o início atual é anterior à restrição;
+2. alinhar o início à restrição, antecipando ou atrasando quando necessário;
 3. preservar duração;
 4. recalcular fim com o calendário efetivo da sucessora;
 5. continuar em cascata.
 
-A política é conservadora: remover uma relação ou antecipar uma predecessora não puxa tarefas para trás automaticamente.
+Uma tarefa `AUTO` com predecessora é controlada pelo grafo. Folgas intencionais
+devem ser registradas no lag; para preservar uma data escolhida diretamente,
+usar o modo `MANUAL`. Ao remover uma relação, a sucessora é recalculada pelas
+predecessoras restantes. Se a última relação for removida, a data atual é
+mantida porque não existe outra âncora temporal que indique até onde antecipar.
 
 Para tarefa `MANUAL`:
 
@@ -141,7 +145,7 @@ tarefas `MANUAL` não são alteradas e seus avisos são reconstruídos.
 | lag positivo | `tests/unit/domain/scheduling.test.ts` |
 | sexta → segunda | testes de calendário, scheduler e UI |
 | feriado e exceção positiva | testes de calendário e UI |
-| alteração sem impacto e política conservadora | `tests/unit/domain/scheduling.test.ts` |
+| antecipação AUTO, cadeia regressiva, predecessora remanescente e última relação removida | testes de scheduler e UI |
 | tarefa MANUAL e conflito informativo | testes de scheduler e UI |
 | ciclo, auto-dependência, relação duplicada | testes de scheduler/domínio |
 | mesma origem de projeto e tarefas-folha | testes de scheduler e constraints SQLite |
@@ -172,11 +176,18 @@ As tarefas-resumo devem apresentar, respectivamente, 28–31/08, 02–04/09 e
 04–13/09. Fechar e reabrir o release deve preservar as dez tarefas, as oito
 relações, o feriado e o conflito manual.
 
-## Fora do escopo da Fase 3
+Para auditar a propagação nos dois sentidos, primeiro atrase **Mapear
+requisitos** e confirme o deslocamento da cadeia. Depois restaure sua data
+anterior: as sucessoras `AUTO` devem retornar para as restrições FS recalculadas,
+preservando duração e lag. **Revisar marco manual** não deve ser deslocada em
+nenhum dos sentidos; quando sua data viola a relação, deve apenas exibir o aviso.
+
+## Fora do escopo do scheduler básico e do Gantt da Fase 4
 
 - dependências SS, FF e SF;
 - dependências entre projetos;
-- antecipação automática após remover restrições;
-- caminho crítico e nivelamento de recursos;
+- inferência de uma data anterior após remover a última predecessora;
 - duplicação de tarefa/projeto, cuja implementação pertence à Fase 5;
-- Kanban e Gantt, pertencentes à Fase 4.
+- caminho crítico e nivelamento de recursos continuam fora do Gantt da Fase 4;
+- drag/resize direto nas barras permanece desabilitado: edições temporais usam
+  o painel do ProjectFlow para respeitar este scheduler.

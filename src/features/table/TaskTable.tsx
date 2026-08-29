@@ -11,6 +11,11 @@ import {
   type VisibleTask,
 } from "../../domain/tasks/hierarchy";
 import {
+  buildTaskOutlineNumbers,
+  taskOutlineLabel,
+  titleWithoutMatchingOutline,
+} from "../../domain/tasks/outline-number";
+import {
   SCHEDULING_MODES,
   SCHEDULING_MODE_LABELS,
   TASK_PRIORITIES,
@@ -25,6 +30,7 @@ import {
 
 interface TaskTableProps {
   readonly tasks: readonly Task[];
+  readonly visibleTaskIds?: ReadonlySet<string>;
   readonly calendars: readonly Calendar[];
   readonly projectCalendarId: string;
   readonly dependencies: readonly TaskDependency[];
@@ -106,6 +112,7 @@ function PredecessorCell({
   const [predecessorId, setPredecessorId] = useState("");
   const [lagDays, setLagDays] = useState(0);
   const taskById = new Map(tasks.map((candidate) => [candidate.id, candidate]));
+  const outlineNumbers = buildTaskOutlineNumbers(tasks);
   const existing = dependencies.filter((dependency) => dependency.successorId === task.id);
   const existingIds = new Set(existing.map((dependency) => dependency.predecessorId));
   const summaryIds = new Set(tasks.flatMap((candidate) => candidate.parentId === null ? [] : [candidate.parentId]));
@@ -133,7 +140,11 @@ function PredecessorCell({
             <DependencyLagEditor
               key={`${dependency.id}-${dependency.updatedAt}`}
               dependency={dependency}
-              predecessorTitle={taskById.get(dependency.predecessorId)?.title ?? "Tarefa removida"}
+              predecessorTitle={
+                taskById.has(dependency.predecessorId)
+                  ? taskOutlineLabel(taskById.get(dependency.predecessorId) as Task, outlineNumbers)
+                  : "Tarefa removida"
+              }
               lagDays={lagDrafts[dependency.id] ?? dependency.lagDays}
               dirty={(lagDrafts[dependency.id] ?? dependency.lagDays) !== dependency.lagDays}
               disabled={disabled}
@@ -146,7 +157,7 @@ function PredecessorCell({
       <div className="dependency-add">
         <select aria-label={`Nova predecessora de ${task.title}`} value={predecessorId} disabled={disabled || available.length === 0} onChange={(event) => { setPredecessorId(event.target.value); }}>
           <option value="">Adicionar…</option>
-          {available.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}
+          {available.map((candidate) => <option key={candidate.id} value={candidate.id}>{taskOutlineLabel(candidate, outlineNumbers)}</option>)}
         </select>
         <input type="number" min={0} value={lagDays} aria-label={`Novo intervalo de ${task.title}`} title="Intervalo em dias úteis" disabled={disabled || predecessorId.length === 0} onChange={(event) => { setLagDays(Number(event.target.value)); }} />
         <button type="button" aria-label={`Confirmar predecessora de ${task.title}`} title="Adicionar predecessora FS" disabled={disabled || predecessorId.length === 0} onClick={() => { void addDependency(); }}>+</button>
@@ -157,6 +168,8 @@ function PredecessorCell({
 
 interface TaskRowProps {
   readonly row: VisibleTask;
+  readonly outlineNumber: string;
+  readonly outlineNumbers: ReadonlyMap<string, string>;
   readonly tasks: readonly Task[];
   readonly calendars: readonly Calendar[];
   readonly projectCalendarId: string;
@@ -179,6 +192,8 @@ interface TaskRowProps {
 
 function TaskRow({
   row,
+  outlineNumber,
+  outlineNumbers,
   tasks,
   calendars,
   projectCalendarId,
@@ -295,7 +310,8 @@ function TaskRow({
       <td className="task-title-cell">
         <div className="task-title-line" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
           {row.hasChildren ? <button className="tree-toggle" type="button" aria-label={expanded ? "Recolher subtarefas" : "Expandir subtarefas"} onClick={onToggleExpanded}>{expanded ? "▾" : "▸"}</button> : <span className="tree-spacer" />}
-          <input className="cell-input title-input" aria-label="Título da tarefa" value={draft.title} disabled={disabled} onChange={(event) => { update({ title: event.target.value }); }} />
+          <span className="task-outline-number" aria-label={`Estrutura ${outlineNumber}`}>{outlineNumber}.</span>
+          <input className="cell-input title-input" aria-label="Título da tarefa" value={titleWithoutMatchingOutline(draft.title, outlineNumber)} disabled={disabled} onChange={(event) => { update({ title: event.target.value }); }} />
           {row.hasChildren ? <span className="summary-badge">Resumo</span> : null}
         </div>
         <div className="task-row-links" style={{ paddingLeft: `${String(row.depth * 1.25 + 1.6)}rem` }}>
@@ -334,7 +350,7 @@ function TaskRow({
               </span>
               <input aria-label="Código visual da tarefa" disabled={disabled} value={draft.code ?? ""} onChange={(event) => { update({ code: event.target.value || null }); }} />
             </label>
-            <label>Tarefa-pai<select disabled={disabled} value={draft.parentId ?? ""} onChange={(event) => { update({ parentId: event.target.value || null }); }}><option value="">Sem tarefa-pai</option>{parentOptions.map((task) => <option value={task.id} key={task.id}>{task.title}</option>)}</select></label>
+            <label>Tarefa-pai<select disabled={disabled} value={draft.parentId ?? ""} onChange={(event) => { update({ parentId: event.target.value || null }); }}><option value="">Sem tarefa-pai</option>{parentOptions.map((task) => <option value={task.id} key={task.id}>{taskOutlineLabel(task, outlineNumbers)}</option>)}</select></label>
             <label>Modo<select disabled={disabled || row.hasChildren} value={draft.schedulingMode} onChange={(event) => { update({ schedulingMode: event.target.value as SchedulingMode }); }}>{SCHEDULING_MODES.map((mode) => <option value={mode} key={mode}>{SCHEDULING_MODE_LABELS[mode]}</option>)}</select></label>
             <label>Calendário<select disabled={disabled || row.hasChildren} value={draft.calendarId ?? ""} onChange={(event) => { updateCalendar(event.target.value || null); }}><option value="">Calendário do projeto</option>{calendars.filter((calendar) => calendar.id !== projectCalendarId).map((calendar) => <option value={calendar.id} key={calendar.id}>{calendar.name}</option>)}</select></label>
             <label className="wide-detail">Descrição<textarea disabled={disabled} rows={2} value={draft.description ?? ""} onChange={(event) => { update({ description: event.target.value || null }); }} /></label>
@@ -350,6 +366,7 @@ function TaskRow({
 
 export function TaskTable({
   tasks,
+  visibleTaskIds,
   calendars,
   projectCalendarId,
   dependencies,
@@ -367,7 +384,21 @@ export function TaskTable({
   const [expandedTaskIds, setExpandedTaskIds] = useState<ReadonlySet<string>>(new Set());
   const [selectedTaskIds, setSelectedTaskIds] = useState<ReadonlySet<string>>(new Set());
   const titleInput = useRef<HTMLInputElement>(null);
-  const visibleTasks = flattenVisibleTasks(tasks, expandedTaskIds);
+  const forcedExpandedIds = new Set(
+    tasks
+      .filter(
+        (task) =>
+          visibleTaskIds?.has(task.id) === true &&
+          task.parentId !== null &&
+          visibleTaskIds.has(task.parentId),
+      )
+      .map((task) => task.parentId as string),
+  );
+  const effectiveExpandedIds = new Set([...expandedTaskIds, ...forcedExpandedIds]);
+  const visibleTasks = flattenVisibleTasks(tasks, effectiveExpandedIds).filter(
+    ({ task }) => visibleTaskIds === undefined || visibleTaskIds.has(task.id),
+  );
+  const outlineNumbers = buildTaskOutlineNumbers(tasks);
   const dependencyTaskIds = new Set(dependencies.flatMap(({ predecessorId, successorId }) => [predecessorId, successorId]));
 
   const handleCreate = async (event: SyntheticEvent<HTMLFormElement>): Promise<void> => {
@@ -392,7 +423,7 @@ export function TaskTable({
         <div><h2 id="task-table-title">Tabela de tarefas</h2><p>{selectedTaskIds.size > 0 ? `${String(selectedTaskIds.size)} selecionada${selectedTaskIds.size === 1 ? "" : "s"}` : "Preencha duas informações de prazo; a terceira será calculada."}</p></div>
         <form className="quick-task-form" onSubmit={(event) => { void handleCreate(event); }}>
           <label className="sr-only" htmlFor="quick-task-title">Título da nova tarefa</label><input id="quick-task-title" ref={titleInput} required placeholder={newParentId === null ? "Nova tarefa" : "Nova subtarefa"} value={newTitle} disabled={disabled} onChange={(event) => { setNewTitle(event.target.value); }} />
-          <label className="sr-only" htmlFor="quick-task-parent">Tarefa-pai</label><select id="quick-task-parent" value={newParentId ?? ""} disabled={disabled} onChange={(event) => { setNewParentId(event.target.value || null); }}><option value="">Sem tarefa-pai</option>{tasks.filter((task) => !dependencyTaskIds.has(task.id)).map((task) => <option value={task.id} key={task.id}>{task.title}</option>)}</select>
+          <label className="sr-only" htmlFor="quick-task-parent">Tarefa-pai</label><select id="quick-task-parent" value={newParentId ?? ""} disabled={disabled} onChange={(event) => { setNewParentId(event.target.value || null); }}><option value="">Sem tarefa-pai</option>{tasks.filter((task) => !dependencyTaskIds.has(task.id)).map((task) => <option value={task.id} key={task.id}>{taskOutlineLabel(task, outlineNumbers)}</option>)}</select>
           <button className="primary-button" type="submit" disabled={disabled}>Adicionar</button>
         </form>
       </div>
@@ -401,10 +432,10 @@ export function TaskTable({
         <table className="task-table">
           <thead><tr><th className="selection-cell"><span className="sr-only">Selecionar</span></th><th>Tarefa</th><th>Predecessoras</th><th>Status</th><th>Prioridade</th><th>Progresso</th><th>Início</th><th>Fim</th><th>Duração</th><th>Responsável</th><th>Tags</th><th>Ações</th></tr></thead>
           <tbody>
-            {visibleTasks.length === 0 ? <tr><td className="empty-table" colSpan={12}><strong>Nenhuma tarefa ainda.</strong><span>Use o campo “Nova tarefa” para começar.</span></td></tr> : visibleTasks.map((row) => {
+            {visibleTasks.length === 0 ? <tr><td className="empty-table" colSpan={12}><strong>{tasks.length === 0 ? "Nenhuma tarefa ainda." : "Nenhuma tarefa corresponde aos filtros."}</strong><span>{tasks.length === 0 ? "Use o campo “Nova tarefa” para começar." : "Limpe ou ajuste os filtros para recuperar as linhas."}</span></td></tr> : visibleTasks.map((row) => {
               const siblings = tasks.filter((task) => task.projectId === row.task.projectId && task.parentId === row.task.parentId).sort((left, right) => left.position - right.position || left.createdAt.localeCompare(right.createdAt));
               const siblingIndex = siblings.findIndex((task) => task.id === row.task.id);
-              return <TaskRow key={`${row.task.id}-${row.task.updatedAt}`} row={row} tasks={tasks} calendars={calendars} projectCalendarId={projectCalendarId} dependencies={dependencies} conflicts={conflicts} disabled={disabled} selected={selectedTaskIds.has(row.task.id)} expanded={expandedTaskIds.has(row.task.id)} canMoveUp={siblingIndex > 0} canMoveDown={siblingIndex >= 0 && siblingIndex < siblings.length - 1} onSelect={(selected) => { setSelectedTaskIds((current) => { const next = new Set(current); if (selected) next.add(row.task.id); else next.delete(row.task.id); return next; }); }} onToggleExpanded={() => { setExpandedTaskIds((current) => { const next = new Set(current); if (next.has(row.task.id)) next.delete(row.task.id); else next.add(row.task.id); return next; }); }} onPrepareSubtask={() => { prepareSubtask(row.task.id); }} onSave={onSave} onMove={(direction) => { void onMove(row.task.id, direction); }} onCreateDependency={onCreateDependency} onDeleteDependency={onDeleteDependency} onDelete={() => { if (window.confirm(`Excluir “${row.task.title}” e todas as suas subtarefas? Esta ação não pode ser desfeita.`)) void onDelete(row.task.id); }} />;
+              return <TaskRow key={`${row.task.id}-${row.task.updatedAt}`} row={row} outlineNumber={outlineNumbers.get(row.task.id) ?? ""} outlineNumbers={outlineNumbers} tasks={tasks} calendars={calendars} projectCalendarId={projectCalendarId} dependencies={dependencies} conflicts={conflicts} disabled={disabled} selected={selectedTaskIds.has(row.task.id)} expanded={effectiveExpandedIds.has(row.task.id)} canMoveUp={siblingIndex > 0} canMoveDown={siblingIndex >= 0 && siblingIndex < siblings.length - 1} onSelect={(selected) => { setSelectedTaskIds((current) => { const next = new Set(current); if (selected) next.add(row.task.id); else next.delete(row.task.id); return next; }); }} onToggleExpanded={() => { setExpandedTaskIds((current) => { const next = new Set(current); if (next.has(row.task.id)) next.delete(row.task.id); else next.add(row.task.id); return next; }); }} onPrepareSubtask={() => { prepareSubtask(row.task.id); }} onSave={onSave} onMove={(direction) => { void onMove(row.task.id, direction); }} onCreateDependency={onCreateDependency} onDeleteDependency={onDeleteDependency} onDelete={() => { if (window.confirm(`Excluir “${row.task.title}” e todas as suas subtarefas? Esta ação não pode ser desfeita.`)) void onDelete(row.task.id); }} />;
             })}
           </tbody>
         </table>

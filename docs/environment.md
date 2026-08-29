@@ -52,6 +52,7 @@ VBSCRIPT é necessário somente para gerar MSI. Não foi habilitado nem alterado
 | SQLx | 0.8.6 | MIT/Apache-2.0 | teste nativo da migration |
 | SQLite runtime | 3.46.0 | domínio público | persistência embarcada |
 | Tauri Log plugin | 2.9.0 | MIT/Apache-2.0 | logs locais |
+| SVAR React Gantt | 2.7.1 | MIT | renderer local do Gantt, carregado sob demanda |
 
 Versões JavaScript ficam em `package.json`/`package-lock.json`; versões Rust ficam em `Cargo.toml`/`Cargo.lock`. `rust-toolchain.toml` fixa Rust 1.98.0. Não há Tauri CLI, React, TypeScript, Vite ou bibliotecas de teste instalados globalmente.
 
@@ -82,7 +83,14 @@ npm install
 npm run tauri add sql
 cargo add tauri-plugin-sql --features sqlite
 npm run tauri add log
+npm install @svar-ui/react-gantt@2.7.1 --save-exact
 ```
+
+O Gantt foi instalado localmente após avaliação de licença, manutenção,
+TypeScript, React, hierarquia, dependências, acessibilidade e bundle. A decisão
+e as alternativas estão no [ADR 013](decisions/013-svar-react-gantt.md). A
+instalação adicionou 35 pacotes ao lockfile e a auditoria npm não encontrou
+vulnerabilidades conhecidas nessa resolução.
 
 O identificador foi ajustado antes da validação final para `com.projectflow.desktop`, eliminando o sufixo `.app` desaconselhado pela CLI.
 
@@ -128,3 +136,10 @@ e o [plugin SQL oficial](https://v2.tauri.app/plugin/sql/) resolve por padrão
 caminhos relativos contra `AppConfig`; por isso o modo local fornece uma URL
 absoluta e deliberada. A validação de instaladores MSI/NSIS e de uma máquina
 Windows limpa permanece reservada ao Checkpoint E.
+
+No fechamento da Fase 4, todos esses gates voltaram a ser executados: lint e
+typecheck aprovados, 69 testes TypeScript/React e 20 testes Rust/SQLite
+aprovados, build web concluído, Cargo fmt/check e Clippy sem erros, auditoria
+npm sem vulnerabilidades conhecidas e release local de teste gerado com o
+frontend incorporado. Nenhuma ferramenta global foi instalada ou atualizada na
+Fase 4; somente o SVAR React Gantt 2.7.1 foi acrescentado às dependências locais.

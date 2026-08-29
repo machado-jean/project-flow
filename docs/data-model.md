@@ -56,6 +56,12 @@ Invariantes principais:
 
 Tags permanecem normalizadas em `tags` e `task_tags`, sem JSON duplicado dentro de `tasks`.
 
+O número hierárquico exibido como `1.`, `1.1.` ou `1.1.1.` é uma projeção
+derivada de `parent_id` e `position`. Ele não é uma coluna, não altera o título
+ou o código visual e é recalculado quando a árvore muda. Da mesma forma,
+seleção, zoom, filtros e dependência em foco pertencem ao estado efêmero das
+views e não são dados de negócio persistidos.
+
 ## Dependência
 
 `task_dependencies` é uma entidade própria com:

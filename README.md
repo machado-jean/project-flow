@@ -4,7 +4,8 @@ ProjectFlow é uma aplicação desktop local-first para planejamento de projetos
 
 ## Estado atual
 
-As Fases 0 a 3 estão concluídas localmente. O recorte funcional atual contém:
+As Fases 0 a 4 estão concluídas localmente e a Fase 4 está pronta para o
+Checkpoint Git 5. O recorte funcional atual contém:
 
 - Tauri 2, React, TypeScript e Vite;
 - SQLite embarcado com migrations versionadas;
@@ -14,17 +15,25 @@ As Fases 0 a 3 estão concluídas localmente. O recorte funcional atual contém:
 - tarefas e subtarefas com edição inline, status, prioridade, progresso, datas,
   duração, responsável, tags e detalhes;
 - hierarquia com expansão/recolhimento, troca de pai, reordenação e prevenção de ciclos;
+- numeração hierárquica derivada (`1.`, `1.1.`, `1.1.1.`) nas três views;
 - calendário configurável com segunda a domingo, feriados e exceções;
 - calendário opcional **Todos os dias** para tarefas de fim de semana;
 - cálculo assistido entre início, fim e duração;
 - predecessoras Término para Início, lag, múltiplas relações e prevenção de ciclos;
-- propagação conservadora de tarefas automáticas e aviso para conflitos manuais;
+- propagação reativa de tarefas automáticas, para frente ou para trás, e aviso
+  para conflitos manuais;
 - tarefas-resumo com datas derivadas;
 - persistência atômica das recalculações;
+- filtros compartilhados por texto, status, prioridade, conclusão, datas e tag;
+- Kanban por status com drag-and-drop e campo **Status** acessível;
+- Gantt com hierarquia, progresso, dependências FS, resumos, escalas, fins de
+  semana, feriados, foco de dependência e edição temporal segura;
+- sincronização imediata entre Tabela, Kanban e Gantt;
+- janela principal maximizada na inicialização;
 - interface integralmente em português.
 
-Kanban, Gantt, filtros, templates e importação/exportação ainda não foram
-implementados e permanecem nas fases seguintes.
+Templates, duplicação e importação/exportação ainda não foram implementados e
+permanecem nas fases seguintes. A Fase 5 não foi iniciada.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -36,7 +45,16 @@ O progresso por fase, os checkpoints e o histórico de entregas são mantidos em
 - SQLite como fonte local de verdade;
 - npm para dependências JavaScript.
 
-As versões exatas e os pré-requisitos estão em [docs/environment.md](docs/environment.md).
+Documentação principal:
+
+- [ambiente e versões](docs/environment.md);
+- [arquitetura](docs/architecture.md);
+- [modelo de dados](docs/data-model.md);
+- [scheduler e calendário](docs/scheduling.md);
+- [Tabela, Kanban, Gantt e auditoria manual](docs/views.md);
+- [roadmap e histórico](docs/roadmap.md);
+- [importação/exportação planejada](docs/import-export.md);
+- [decisões arquiteturais](docs/decisions/).
 
 ## Preparação
 
@@ -109,6 +127,10 @@ npm run tauri:build:test
 
 O resultado fica em `src-tauri\target\release\project-flow.exe`. Não distribuir
 esse binário, pois ele referencia a `.local` do checkout em que foi compilado.
+
+No fechamento da Fase 4, `npm run check` aprovou lint, typecheck e **69 testes
+TypeScript/React**; a suíte nativa aprovou **20 testes Rust/SQLite**. O build web,
+Cargo fmt/check, Clippy e o release local também foram validados.
 
 Para validar futuramente o comportamento de distribuição sem gerar instaladores:
 

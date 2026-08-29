@@ -228,7 +228,7 @@ describe("scheduler FS", () => {
     expect(result.tasks.find(({ id }) => id === B)?.startDate).toBe("2026-08-30");
   });
 
-  it("não antecipa uma tarefa quando a alteração não exige deslocamento", () => {
+  it("antecipa tarefa AUTO para a primeira data permitida pela predecessora", () => {
     const laterTask = task(B, { startDate: "2026-09-02", endDate: "2026-09-02" });
     const result = schedule(
       [task(A), laterTask],
@@ -236,7 +236,67 @@ describe("scheduler FS", () => {
       [A],
     );
 
-    expect(result.tasks.find(({ id }) => id === B)).toEqual(laterTask);
+    expect(result.tasks.find(({ id }) => id === B)?.startDate).toBe("2026-08-31");
+    expect(result.tasks.find(({ id }) => id === B)?.endDate).toBe("2026-08-31");
+    expect(result.changedTaskIds.has(B)).toBe(true);
+  });
+
+  it("antecipa A → B → C em cascata quando a origem termina mais cedo", () => {
+    const result = schedule(
+      [
+        task(A),
+        task(B, { startDate: "2026-09-07", endDate: "2026-09-07" }),
+        task(C, { startDate: "2026-09-08", endDate: "2026-09-08" }),
+      ],
+      [
+        dependency("40000000-0000-4000-8000-000000000001", A, B),
+        dependency("40000000-0000-4000-8000-000000000002", B, C),
+      ],
+      [A],
+    );
+
+    expect(result.tasks.find(({ id }) => id === B)?.startDate).toBe("2026-08-31");
+    expect(result.tasks.find(({ id }) => id === C)?.startDate).toBe("2026-09-01");
+    expect([...result.changedTaskIds].sort()).toEqual([B, C]);
+  });
+
+  it("antecipa pela restrição mais tardia com múltiplas predecessoras", () => {
+    const result = schedule(
+      [
+        task(A),
+        task(B, { startDate: "2026-08-31", endDate: "2026-08-31" }),
+        task(C, { startDate: "2026-09-10", endDate: "2026-09-10" }),
+      ],
+      [
+        dependency("40000000-0000-4000-8000-000000000001", A, C),
+        dependency("40000000-0000-4000-8000-000000000002", B, C),
+      ],
+      [A, B],
+    );
+
+    expect(result.tasks.find(({ id }) => id === C)?.startDate).toBe("2026-09-01");
+  });
+
+  it("recalcula pela predecessora restante quando outra relação é removida", () => {
+    const result = schedule(
+      [
+        task(A),
+        task(B, { startDate: "2026-09-04", endDate: "2026-09-04" }),
+        task(C, { startDate: "2026-09-07", endDate: "2026-09-07" }),
+      ],
+      [dependency("40000000-0000-4000-8000-000000000001", A, C)],
+      [C],
+    );
+
+    expect(result.tasks.find(({ id }) => id === C)?.startDate).toBe("2026-08-31");
+    expect(result.changedTaskIds.has(C)).toBe(true);
+  });
+
+  it("mantém a data atual ao remover a última predecessora por não haver nova âncora", () => {
+    const unlinked = task(B, { startDate: "2026-09-07", endDate: "2026-09-07" });
+    const result = schedule([task(A), unlinked], [], [B]);
+
+    expect(result.tasks.find(({ id }) => id === B)).toEqual(unlinked);
     expect(result.changedTaskIds.has(B)).toBe(false);
   });
 

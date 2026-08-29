@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { useEffect, type PropsWithChildren } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import App from "../../../src/app/App";
 import {
@@ -15,6 +16,48 @@ import type {
   WorkspaceRepository,
   WorkspaceSnapshot,
 } from "../../../src/repositories/workspace-repository";
+
+const ganttHarness = vi.hoisted(() => {
+  let selectionListener: ((event: { readonly id: string }) => void) | null = null;
+  return {
+    api: {
+      on: vi.fn((action: string, listener: (event: { readonly id: string }) => void) => {
+        if (action === "select-task") selectionListener = listener;
+      }),
+      detach: vi.fn(() => { selectionListener = null; }),
+    },
+    select(id: string) { selectionListener?.({ id }); },
+  };
+});
+
+vi.mock("@svar-ui/react-gantt", () => ({
+  Gantt: ({
+    tasks,
+    links,
+    init,
+  }: {
+    readonly tasks?: readonly { readonly id?: string; readonly text?: string }[];
+    readonly links?: readonly { readonly id?: string }[];
+    readonly init?: (api: typeof ganttHarness.api) => void;
+  }) => {
+    useEffect(() => { init?.(ganttHarness.api); }, [init]);
+    return (
+      <div data-testid="svar-gantt">
+        {tasks?.map((task) => (
+          <button key={task.id} type="button" onClick={() => { if (task.id !== undefined) ganttHarness.select(task.id); }}>
+            {task.text}
+          </button>
+        ))}
+        {links?.map((link) => (
+          <button key={link.id} type="button" data-link-id={link.id}>
+            Dependência {link.id}
+          </button>
+        ))}
+      </div>
+    );
+  },
+  Willow: ({ children }: PropsWithChildren) => <>{children}</>,
+}));
 
 const NOW = "2026-08-27T15:00:00.000Z";
 const PROJECT_ID = "10000000-0000-4000-8000-000000000001";
@@ -366,7 +409,46 @@ describe("aplicação ProjectFlow", () => {
       expect(repository.tasks.find(({ id }) => id === successor.id)?.startDate).toBe("2026-08-31");
       expect(repository.tasks.find(({ id }) => id === successor.id)?.endDate).toBe("2026-08-31");
     });
-    expect(await screen.findByText("Predecessora", { selector: ".dependency-item span" })).toBeVisible();
+    expect(await screen.findByText("1. Predecessora", { selector: ".dependency-item span" })).toBeVisible();
+  });
+
+  it("antecipa sucessoras automáticas em cadeia quando a predecessora termina mais cedo", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-09-01", {
+      endDate: "2026-09-04",
+      durationDays: 4,
+    });
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-09-07", {
+      position: 1,
+    });
+    const finalTask = scheduledTask(THIRD_TASK_ID, "Entrega final", "2026-09-08", {
+      position: 2,
+    });
+    const firstRelation = dependency(predecessor.id, successor.id);
+    const secondRelation = {
+      ...dependency(successor.id, finalTask.id),
+      id: "40000000-0000-4000-8000-000000000002",
+    };
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [predecessor, successor, finalTask],
+      dependencies: [firstRelation, secondRelation],
+    });
+    render(<App repository={repository} />);
+
+    const endFields = await screen.findAllByLabelText("Fim da tarefa");
+    fireEvent.change(endFields[0] as HTMLElement, {
+      target: { value: "2026-09-02" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+
+    await waitFor(() => {
+      expect(repository.tasks.find(({ id }) => id === predecessor.id)?.endDate).toBe("2026-09-02");
+      expect(repository.tasks.find(({ id }) => id === successor.id)?.startDate).toBe("2026-09-03");
+      expect(repository.tasks.find(({ id }) => id === finalTask.id)?.startDate).toBe("2026-09-04");
+    });
+    expect(repository.appliedScheduleChanges.at(-1)?.tasks.map(({ id }) => id)).toEqual(
+      expect.arrayContaining([predecessor.id, successor.id, finalTask.id]),
+    );
   });
 
   it("salva tarefa e lag juntos pelo único botão da coluna Ações", async () => {
@@ -379,7 +461,7 @@ describe("aplicação ProjectFlow", () => {
     });
     render(<App repository={repository} />);
 
-    const lag = await screen.findByLabelText("Intervalo após Predecessora");
+    const lag = await screen.findByLabelText("Intervalo após 1. Predecessora");
     fireEvent.change(lag, { target: { value: "2" } });
     fireEvent.change(screen.getAllByLabelText("Status da tarefa")[1] as HTMLElement, {
       target: { value: "IN_PROGRESS" },
@@ -414,7 +496,7 @@ describe("aplicação ProjectFlow", () => {
     });
     render(<App repository={repository} />);
 
-    fireEvent.change(await screen.findByLabelText("Intervalo após Predecessora"), {
+    fireEvent.change(await screen.findByLabelText("Intervalo após 1. Predecessora"), {
       target: { value: "-1" },
     });
     fireEvent.change(screen.getAllByLabelText("Status da tarefa")[1] as HTMLElement, {
@@ -591,5 +673,110 @@ describe("aplicação ProjectFlow", () => {
     expect(durations[0]).toBeDisabled();
     expect(screen.getByText("Resumo")).toBeVisible();
     expect(screen.getByText("Datas derivadas")).toBeVisible();
+  });
+
+  it("altera status no Kanban e reflete a mesma tarefa na Tabela", async () => {
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [scheduledTask(TASK_ID, "Preparar operação", "2026-08-28")],
+    });
+    render(<App repository={repository} />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Kanban" }));
+    expect(screen.getByRole("heading", { name: "Quadro Kanban" })).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Status de Preparar operação"), {
+      target: { value: "IN_PROGRESS" },
+    });
+
+    await waitFor(() => {
+      expect(repository.tasks[0]?.status).toBe("IN_PROGRESS");
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Tabela" }));
+    expect(await screen.findByLabelText("Status da tarefa")).toHaveValue("IN_PROGRESS");
+  });
+
+  it("mantém filtros ao alternar entre Tabela, Kanban e Gantt", async () => {
+    const first = scheduledTask(TASK_ID, "Desenvolver interface", "2026-08-28", {
+      tags: ["frontend"],
+    });
+    const second = scheduledTask(SECOND_TASK_ID, "Escrever manual", "2026-08-31", {
+      position: 1,
+      tags: ["documentação"],
+    });
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [first, second] });
+    render(<App repository={repository} />);
+
+    expect(await screen.findByDisplayValue("Desenvolver interface")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Tag"), { target: { value: "frontend" } });
+    expect(screen.getByText("1 de 2 tarefas")).toBeVisible();
+    expect(screen.queryByDisplayValue("Escrever manual")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Kanban" }));
+    expect(screen.getByText("Desenvolver interface")).toBeVisible();
+    expect(screen.queryByText("Escrever manual")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Gantt" }));
+    expect(await screen.findByTestId("svar-gantt")).toHaveTextContent("Desenvolver interface");
+    expect(screen.getByTestId("svar-gantt")).not.toHaveTextContent("Escrever manual");
+  });
+
+  it("edita cronograma com segurança pelo inspetor do Gantt", async () => {
+    const scheduled = scheduledTask(TASK_ID, "Planejar entrega", "2026-08-28");
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [scheduled] });
+    render(<App repository={repository} />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    fireEvent.change(await screen.findByLabelText("Tarefa selecionada no Gantt"), {
+      target: { value: TASK_ID },
+    });
+    fireEvent.change(screen.getByLabelText("Início"), { target: { value: "2026-08-31" } });
+    fireEvent.change(screen.getByLabelText("Duração útil"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar cronograma" }));
+
+    await waitFor(() => {
+      expect(repository.tasks[0]?.startDate).toBe("2026-08-31");
+      expect(repository.tasks[0]?.endDate).toBe("2026-09-02");
+      expect(repository.tasks[0]?.durationDays).toBe(3);
+    });
+  });
+
+  it("sincroniza o inspetor ao selecionar uma barra do Gantt", async () => {
+    const scheduled = scheduledTask(TASK_ID, "Planejar entrega", "2026-08-28");
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [scheduled] });
+    render(<App repository={repository} />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    fireEvent.click(await screen.findByRole("button", { name: "1. Planejar entrega" }));
+
+    expect(screen.getByLabelText("Tarefa selecionada no Gantt")).toHaveValue(TASK_ID);
+    expect(screen.getByLabelText("Início")).toHaveValue("2026-08-28");
+    expect(screen.getByLabelText("Duração útil")).toHaveValue(1);
+  });
+
+  it("isola uma dependência do Gantt ao clicar na linha e permite voltar a todas", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", {
+      position: 1,
+    });
+    const relation = dependency(predecessor.id, successor.id);
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [predecessor, successor],
+      dependencies: [relation],
+    });
+    render(<App repository={repository} />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    fireEvent.click(await screen.findByRole("button", {
+      name: `Dependência ${relation.id}`,
+    }));
+
+    expect(screen.getByLabelText("Dependência em foco")).toHaveValue(relation.id);
+    expect(screen.getByText(/Em foco: 1\. Predecessora → 2\. Sucessora/)).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText("Dependência em foco"), {
+      target: { value: "" },
+    });
+    expect(screen.getByLabelText("Dependência em foco")).toHaveValue("");
   });
 });

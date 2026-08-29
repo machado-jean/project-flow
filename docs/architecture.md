@@ -34,6 +34,17 @@ validação e persistência; `WorkspaceRepository` define a fronteira; e o adapt
 Tauri invoca comandos nativos explícitos. A interface nunca executa SQL nem
 contém regras centrais de agendamento.
 
+A Fase 4 mantém a mesma fronteira. `ProjectViews` conserva somente estado de
+navegação e filtros; Tabela, Kanban e Gantt recebem as mesmas entidades do
+workspace. `TaskKanban` altera status pelo mesmo `onSave` e `TaskGantt` cria uma
+projeção transitória para a biblioteca SVAR. Não existem tabelas, repositories
+ou cópias persistidas específicas de view.
+
+A identificação estrutural (`1.`, `1.1.`, `1.1.1.`) também é uma projeção do
+domínio. `buildTaskOutlineNumbers` percorre a hierarquia ordenada e fornece os
+rótulos às três views. O número não é parte do título, do código visual nem do
+schema; reordenar ou mudar o pai recalcula a identificação imediatamente.
+
 ## Persistência
 
 O plugin SQL oficial do Tauri abre o SQLite e aplica as migrations registradas.
@@ -89,22 +100,32 @@ apply_schedule_changes / transação SQLite
 estado React recebe exatamente o resultado persistido
 ```
 
-O scheduler aplica política conservadora, calendário efetivo da sucessora e
-conflitos informativos para tarefas manuais. As regras detalhadas e a matriz de
-testes estão em [scheduling.md](scheduling.md).
+O scheduler ancora tarefas automáticas com predecessoras na restrição FS mais
+tardia, podendo propagá-las para frente ou para trás. Ele usa o calendário
+efetivo da sucessora e mantém conflitos informativos para tarefas manuais. As
+regras detalhadas e a matriz de testes estão em [scheduling.md](scheduling.md).
 
-## Apresentação inicial
+## Apresentação
 
 - toda a interface destinada ao usuário está em português;
 - a Tabela inicial usa HTML nativo e controles acessíveis, sem adicionar uma
   dependência estrutural de grid antes de medir uma necessidade real;
-- projetos e tarefas compartilham um único estado, preparando as futuras views;
+- projetos e tarefas compartilham um único estado entre Tabela, Kanban e Gantt;
 - dependências são editadas na coluna **Predecessoras** da Tabela;
 - início, fim e duração formam uma edição assistida de duas entradas para três campos;
 - calendário e exceções são configuráveis sem sair do projeto;
 - tarefas-resumo exibem datas derivadas e bloqueiam edição direta;
 - erros de domínio são apresentados ao usuário e não chegam à persistência;
-- projetos arquivados são mantidos no banco e ficam em modo somente leitura.
+- projetos arquivados são mantidos no banco e ficam em modo somente leitura;
+- filtros por texto, status, prioridade, conclusão, intervalo e tag são
+  compartilhados pelas três views e preservam ancestrais como contexto;
+- o Kanban oferece drag-and-drop e um seletor equivalente operável por teclado;
+- o Gantt é carregado sob demanda, fica somente leitura como renderer e envia
+  edições de prazo pelo scheduler do ProjectFlow;
+- o Gantt converte o fim inclusivo para o limite exclusivo esperado pelo
+  renderer e permite isolar relações longas por clique ou seletor;
+- a janela desktop inicia maximizada, preservando dimensões mínimas para
+  restauração; ver [ADR 013](decisions/013-svar-react-gantt.md).
 
 ## Segurança e operação local
 

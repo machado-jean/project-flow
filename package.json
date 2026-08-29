@@ -24,6 +24,7 @@
     "tauri:build:test": "tauri build --no-bundle --features shared-dev-data"
   },
   "dependencies": {
+    "@svar-ui/react-gantt": "2.7.1",
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-log": "2.9.0",
     "@tauri-apps/plugin-sql": "2.4.0",

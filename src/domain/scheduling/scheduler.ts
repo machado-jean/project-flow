@@ -112,7 +112,9 @@ export function rescheduleAffectedTasks(input: ScheduleInput): ScheduleResult {
       });
       continue;
     }
-    if (task.startDate === null || task.startDate < earliestStart) {
+    // AUTO tasks with dependencies are anchored to the latest FS constraint.
+    // An intentional gap belongs in lag; MANUAL tasks retain user-controlled dates.
+    if (task.startDate !== earliestStart) {
       tasksById.set(taskId, {
         ...task,
         startDate: earliestStart,

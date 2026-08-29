@@ -2,7 +2,8 @@
 
 ## Estado
 
-Aceita em 27 de agosto de 2026.
+Aceita em 27 de agosto de 2026 e revisada em 28 de agosto de 2026 após auditoria
+manual da propagação regressiva.
 
 ## Contexto
 
@@ -22,11 +23,19 @@ rejeita auto-dependência, duplicidade e ciclo antes da persistência. O banco
 repete as invariantes estruturais que podem ser expressas em constraints e
 triggers.
 
-Tarefas `AUTO` são empurradas somente para frente, preservando duração. Remover
-ou antecipar uma restrição não puxa tarefas para trás. Tarefas `MANUAL` são
-preservadas e recebem conflito informativo apenas quando uma predecessora
-declarada exige início posterior. Coincidência de datas sem relação não é
-conflito.
+Tarefas `AUTO` com predecessoras são alinhadas à restrição FS mais tardia,
+preservando duração. Se uma predecessora termina mais tarde, a sucessora é
+atrasada; se termina mais cedo, a sucessora é antecipada. O mesmo cálculo segue
+em cascata pela ordem topológica.
+
+Uma folga intencional deve ser expressa pelo lag. Uma data controlada diretamente
+deve usar o modo `MANUAL`, que continua preservado e recebe conflito informativo
+apenas quando uma predecessora declarada exige início posterior. Coincidência de
+datas sem relação não é conflito.
+
+Ao remover uma relação, predecessoras restantes continuam determinando a data.
+Ao remover a última predecessora, a data atual é mantida: sem baseline, restrição
+ou outra âncora, o domínio não possui uma data anterior correta para inferir.
 
 ## Consequências
 
@@ -35,4 +44,13 @@ conflito.
 - relações entre projetos e demais tipos de dependência ficam para trabalho futuro;
 - tarefas-resumo derivam datas dos descendentes e não participam diretamente do grafo;
 - toda propagação precisa ser persistida em uma transação única;
-- antecipação automática poderá ser adicionada no futuro apenas como política explícita.
+- tarefas automáticas com relação não preservam folgas implícitas; use lag ou
+  modo manual conforme a intenção.
+
+## Histórico da decisão
+
+A versão inicial adotava propagação conservadora somente para frente. A
+auditoria do usuário demonstrou que concluir uma predecessora antes do previsto
+deve liberar e antecipar suas sucessoras automáticas. A política foi revisada
+explicitamente, com testes de unidade, cadeia, múltiplas predecessoras,
+interface e persistência transacional.

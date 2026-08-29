@@ -7,6 +7,11 @@ preservar semanticamente calendários, dias úteis, feriados/exceções, projeto
 tarefas, calendário opcional por tarefa, hierarquia, tags e dependências FS com
 lag, além das entidades introduzidas até lá.
 
+Numeração hierárquica, seleção, filtros, zoom e dependência em foco são
+projeções derivadas ou estado efêmero das views. Eles não devem ser serializados
+como entidades de negócio. Ao importar, a numeração será reconstruída de
+`parent_id` e `position`.
+
 ## Formato planejado
 
 A extensão provisória é `.projectflow`, com conteúdo ZIP:

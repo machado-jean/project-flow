@@ -31,15 +31,15 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Scheduling FS concluído localmente |
-| Fase ativa | Nenhuma; Fase 3 pronta para auditoria e checkpoint Git |
-| Próxima fase | Fase 4 — Views, somente após aceite explícito |
+| Etapa do produto | Views sincronizadas concluídas; Checkpoint Git 5 preparado |
+| Fase ativa | Nenhuma; Fase 4 pronta para commit local do usuário |
+| Próxima fase | Fase 5 — Reutilização, somente após aceite explícito |
 | Versão da aplicação | `0.1.0` |
 | Versão do schema SQLite | `3` |
-| Último commit estável | `1b3e9c6` — `Complete ProjectFlow core with projects tasks and hierarchy` |
-| Branch de trabalho | `main`, com a Fase 3 ainda não commitada |
+| Último commit estável | `6f02673` — `Implement ProjectFlow foundation and core task management` |
+| Branch de trabalho | `main`, com o Checkpoint Git 5 ainda não commitado |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
-| Funcionalidades de negócio | Project/Task, calendário, FS, propagação e tarefas-resumo implementados |
+| Funcionalidades de negócio | Project/Task, scheduler FS, filtros, Tabela, Kanban e Gantt implementados |
 
 ## Visão geral das fases
 
@@ -48,8 +48,8 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | 0 — Ambiente | Preparar e documentar o toolchain Windows | Concluída | 1 | Pré-requisitos oficiais instalados e validados |
 | 1 — Fundação | Criar shell, qualidade, persistência e documentação | Concluída | 1 e 2 | Aplicação vazia executa, testes passam e SQLite migra |
 | 2 — Core | Implementar Project, Task, hierarquia e Tabela inicial | Concluída | 3 | Core persistido e editável com integridade e testes |
-| 3 — Scheduling | Implementar calendário, dependência FS e propagação | Concluída localmente | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
-| 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Planejada | 5 | As views projetam a mesma tarefa sem duplicar dados |
+| 3 — Scheduling | Implementar calendário, dependência FS e propagação | Concluída | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
+| 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Concluída | 5 | As views projetam a mesma tarefa sem duplicar dados |
 | 5 — Reutilização | Entregar duplicação e templates | Planejada | 6 | Árvores e relações internas são recriadas com novos UUIDs |
 | 6 — Portabilidade | Entregar exportação, importação e backup | Planejada | 7 | Round-trip preserva semanticamente o workspace |
 | 7 — Hardening e distribuição | Preparar o produto para uso real no Windows | Planejada | 8 | Instalador e operação offline validados em máquina limpa |
@@ -95,7 +95,7 @@ Critério de saída atendido: Checkpoints A, B, C e D confirmados, sem regras de
 
 ## Fase 2 — Core
 
-Estado: **Concluída localmente**.
+Estado: **Concluída**.
 
 Ordem recomendada:
 
@@ -128,7 +128,7 @@ passa pelos gates de qualidade. O Checkpoint Git 3 foi consolidado no commit
 
 ## Fase 3 — Scheduling
 
-Estado: **Concluída localmente**.
+Estado: **Concluída**.
 
 - [x] Implementar datas `date-only` e calendário de trabalho em TypeScript puro.
 - [x] Implementar fins de semana, feriados e exceções.
@@ -139,7 +139,7 @@ Estado: **Concluída localmente**.
 - [x] Restringir dependências ao mesmo projeto e a tarefas-folha.
 - [x] Implementar modos AUTO e MANUAL com conflitos informativos.
 - [x] Implementar calendário opcional por tarefa e opção **Todos os dias**.
-- [x] Implementar propagação conservadora somente para frente.
+- [x] Implementar propagação reativa para frente e para trás em tarefas `AUTO`.
 - [x] Recalcular e bloquear edição direta de tarefas-resumo.
 - [x] Persistir calendário, relações e recalculações em transação.
 - [x] Cobrir todos os 15 casos obrigatórios do scheduler.
@@ -150,18 +150,25 @@ calendário efetivo, cadeia, ciclos, MANUAL/AUTO, resumos e rollback cobertos.
 
 ## Fase 4 — Views
 
-Estado: **Planejada**.
+Estado: **Concluída; pronta para commit local**.
 
-- [ ] Implementar Kanban por status com alternativa acessível ao drag-and-drop.
-- [ ] Implementar busca e filtros mínimos.
-- [ ] Avaliar biblioteca de Gantt por licença, manutenção, TypeScript, desempenho, acessibilidade e bundle.
-- [ ] Registrar a escolha de Gantt em ADR antes da integração.
-- [ ] Implementar Gantt com hierarquia, dependências e tarefas-resumo.
-- [ ] Garantir atualização imediata entre Tabela, Kanban e Gantt.
-- [ ] Validar que nenhuma view mantém uma cópia persistida de Task.
-- [ ] Cobrir interação e sincronização entre views.
+- [x] Implementar Kanban por status com alternativa acessível ao drag-and-drop.
+- [x] Implementar busca e filtros mínimos.
+- [x] Avaliar biblioteca de Gantt por licença, manutenção, TypeScript, desempenho, acessibilidade e bundle.
+- [x] Registrar a escolha de Gantt em ADR antes da integração.
+- [x] Implementar Gantt com hierarquia, dependências e tarefas-resumo.
+- [x] Garantir atualização imediata entre Tabela, Kanban e Gantt.
+- [x] Validar que nenhuma view mantém uma cópia persistida de Task.
+- [x] Cobrir interação e sincronização entre views.
 
-Critério de saída: as três views operam sobre a mesma fonte de verdade e permanecem consistentes.
+Critério de saída atendido: as três views operam sobre a mesma fonte de verdade,
+os filtros são compartilhados, o Gantt delega alterações ao scheduler e a
+sincronização entre Kanban e Tabela está coberta por testes de UI.
+
+Melhorias de UX não bloqueantes, como ação **Hoje**, enquadramento automático
+do projeto, navegação entre as pontas de uma relação e densidade compacta do
+Kanban, permanecem em backlog. Marcos, baseline e caminho crítico exigirão
+decisões próprias e não fazem parte deste checkpoint.
 
 ## Fase 5 — Reutilização
 
@@ -219,8 +226,8 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 1 — Ambiente + scaffold | Concluído | `7b41a4a` — fundação consolidada |
 | 2 — SQLite + migrations + qualidade | Concluído | `7b41a4a` — fundação consolidada |
 | 3 — Project/Task core | Concluído | `1b3e9c6` |
-| 4 — Scheduler FS | Pronto para versionar | entrega local validada, ainda não commitada |
-| 5 — Tabela/Kanban/Gantt | Planejado | — |
+| 4 — Scheduler FS | Concluído | `6f02673` |
+| 5 — Tabela/Kanban/Gantt | Pronto para commit | entrega e documentação validadas, ainda não commitadas |
 | 6 — Duplicação/templates | Planejado | — |
 | 7 — Export/import/backup | Planejado | — |
 | 8 — Empacotamento Windows | Planejado | — |
@@ -234,7 +241,7 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 | Tema | Momento | Registro esperado |
 | --- | --- | --- |
 | Biblioteca ou estratégia da Tabela | Antes de adicionar uma dependência de grid | A base atual usa HTML nativo; ADR se uma dependência estrutural for necessária |
-| Biblioteca de Gantt | Antes da Fase 4 | ADR obrigatório |
+| Biblioteca de Gantt | Resolvida na Fase 4 | ADR 013 — SVAR React Gantt 2.7.1 |
 | Formato final `.projectflow` | Antes da Fase 6 | `import-export.md` e ADR se necessário |
 | Bundle WebView2 e instalador offline | Durante a Fase 7 | ADR de distribuição |
 
@@ -297,8 +304,9 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Edição da Tabela calcula automaticamente o terceiro campo quando início,
   fim ou duração fornecem informações suficientes.
 - Grafo FS implementado com validação, ciclo, ordenação topológica, lag,
-  múltiplas predecessoras e propagação conservadora do subgrafo afetado.
-- Tarefas `AUTO` preservam duração e são empurradas para frente; tarefas
+  múltiplas predecessoras e propagação reativa do subgrafo afetado.
+- Tarefas `AUTO` preservam duração e são deslocadas para a restrição FS mais
+  tardia, inclusive quando ela fica anterior; tarefas
   `MANUAL` permanecem fixas e recebem conflito apenas quando uma predecessora
   declarada é violada.
 - Calendário opcional por tarefa e calendário integrado **Todos os dias**
@@ -445,6 +453,89 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Commit: `não commitado`.
 - Resultado: release local com frontend incorporado e apontando para a mesma
   base de testes de `tauri dev`, sem perda do banco recuperado.
+
+### 28 de agosto de 2026 — Fase 4: filtros, Kanban e Gantt
+
+- Tabela, Kanban e Gantt passaram a ser três projeções da mesma coleção de
+  `Task`; nenhuma view criou tabela, repository ou persistência própria.
+- Filtros compartilhados cobrem texto, status, prioridade, conclusão, intervalo
+  de datas e tag. Ancestrais são preservados como contexto de hierarquia.
+- O Kanban organiza cartões nas cinco colunas de status e permite movimentação
+  tanto por drag-and-drop quanto pelo campo acessível **Status**.
+- SVAR React Gantt 2.7.1 foi selecionado após avaliação de licença MIT,
+  manutenção, React/TypeScript, hierarquia, dependências, desempenho,
+  acessibilidade e bundle. A decisão está no ADR 013.
+- O Gantt apresenta hierarquia, resumos, progresso, dependências FS, escalas de
+  dias/semanas/meses, finais de semana e feriados. O renderer é somente leitura;
+  início e duração são editados no painel do ProjectFlow e passam pelo scheduler.
+- A numeração hierárquica `1.`, `1.1.`, `1.1.1.` passou a ser derivada da árvore
+  e aparece nas três views sem alterar títulos nem o banco.
+- A projeção temporal passou a converter o fim inclusivo do ProjectFlow para o
+  limite exclusivo do renderer; resumos que atravessam o fim de semana agora
+  ocupam todos os dias civis até a data final.
+- Dependências podem ser isoladas por clique na linha ou pelo seletor acessível,
+  com realce da predecessora e sucessora; a opção **Todas as dependências**
+  restaura a visão completa.
+- A janela principal foi configurada para iniciar maximizada no Windows.
+- Código e CSS do Gantt são carregados sob demanda. O build final gerou chunks
+  de aproximadamente 255 kB para a aplicação e 260 kB para o Gantt, além de CSS
+  específico de 148 kB, todos antes de gzip.
+- A primeira auditoria nativa encontrou uma tela branca ao abrir o Gantt: folhas
+  eram marcadas como abertas na árvore interna da biblioteca. O adapter passou a
+  abrir somente pais com filhos projetados, recebeu teste de regressão e a view
+  ganhou uma barreira de erro para preservar o restante da aplicação.
+- A auditoria final também encontrou o destaque visual sem atualização do
+  inspetor ao clicar em uma barra. A seleção passou a ouvir a ação oficial
+  `select-task` pela API do Gantt e recebeu teste de regressão de interface.
+- Auditoria visual aprovou Kanban, Gantt diário/semanal, filtro de resumo sem
+  filhos visíveis e bloqueio de prazo da tarefa-resumo, sem alterar o banco.
+- Gates aprovados: 69 testes TypeScript/React, 20 testes Rust/SQLite, lint,
+  typecheck, build web, auditoria npm sem vulnerabilidades, Cargo fmt/check,
+  Clippy e build Tauri local com a feature de dados compartilhados.
+- Nenhuma migration foi criada: a Fase 4 altera somente projeção e interação.
+- Release local validado em
+  `src-tauri/target/release/project-flow.exe`, com as dez tarefas do cenário de
+  auditoria e sem servidor Vite.
+- Commit: `não commitado`.
+- Checkpoint: Git 5 pronto para auditoria do usuário e versionamento posterior.
+- Resultado: a Fase 4 está concluída localmente; a Fase 5 não foi iniciada.
+
+### 28 de agosto de 2026 — Revisão da propagação regressiva
+
+- A auditoria manual identificou que antecipar o término de uma predecessora
+  não liberava suas sucessoras automáticas, devido à política conservadora
+  originalmente adotada no ADR 009.
+- A política foi revisada explicitamente: tarefas `AUTO` com predecessoras
+  agora ficam alinhadas à restrição FS mais tardia e podem ser deslocadas para
+  frente ou para trás, preservando duração, calendário e lag.
+- A antecipação segue em cascata pela ordem topológica e continua usando a
+  restrição mais tardia quando existem múltiplas predecessoras.
+- Tarefas `MANUAL` permanecem intocadas. Folgas intencionais pertencem ao lag;
+  remover a última predecessora mantém a data atual por falta de nova âncora.
+- Regressão de interface comprovada: reduzir o término da origem de 04/09 para
+  02/09 antecipou a sucessora para 03/09 e a tarefa seguinte para 04/09 no
+  mesmo `ScheduleChangeSet`.
+- Nenhuma migration foi necessária; a mudança afeta somente a regra de domínio
+  e usa a transação já existente.
+- Gates aprovados: 69 testes TypeScript/React, 20 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check, Clippy e build Tauri local.
+- Commit: `não commitado`.
+- Resultado: a correção foi incorporada ao Checkpoint Git 5 sem iniciar a Fase 5.
+
+### 28 de agosto de 2026 — Fechamento documental da Fase 4
+
+- README, ambiente, arquitetura, modelo de dados, scheduler, views,
+  importação/exportação planejada, roadmap e ADRs foram auditados em conjunto.
+- A documentação explicita a fonte única de verdade, numeração derivada, fim
+  inclusivo, foco de dependência, início maximizado e propagação `AUTO` nos dois
+  sentidos, sem atribuir persistência própria às views.
+- Melhorias possíveis de Gantt e Kanban foram registradas como backlog não
+  bloqueante; duplicação e templates permanecem exclusivamente na Fase 5.
+- Nenhuma migration ou mudança de schema foi necessária; o schema permanece 3.
+- Gates finais: 69 testes TypeScript/React, 20 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check, Clippy e release local aprovados.
+- Commit: `não commitado`; nenhuma operação remota foi executada.
+- Resultado: Fase 4 concluída e Checkpoint Git 5 pronto para commit do usuário.
 
 ## Regras permanentes de acompanhamento
 
