@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState, type KeyboardEvent } from "react";
 
 import type { Calendar } from "../../domain/calendars/calendar";
 import type { TaskDependency } from "../../domain/scheduling/dependency";
@@ -86,6 +86,23 @@ export function ProjectViews({
     [tasks, visibleTaskIds],
   );
 
+  const moveTabFocus = (event: KeyboardEvent<HTMLButtonElement>, view: ProjectView): void => {
+    const views = Object.keys(VIEW_LABELS) as ProjectView[];
+    const currentIndex = views.indexOf(view);
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % views.length;
+    if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + views.length) % views.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = views.length - 1;
+    if (nextIndex === null) return;
+
+    event.preventDefault();
+    const nextView = views[nextIndex];
+    if (nextView === undefined) return;
+    setActiveView(nextView);
+    document.getElementById(`view-tab-${nextView.toLocaleLowerCase()}`)?.focus();
+  };
+
   return (
     <div className="project-views">
       <div className="view-command-bar">
@@ -98,8 +115,10 @@ export function ProjectViews({
               id={`view-tab-${view.toLocaleLowerCase()}`}
               aria-selected={activeView === view}
               aria-controls={`view-panel-${view.toLocaleLowerCase()}`}
+              tabIndex={activeView === view ? 0 : -1}
               className={activeView === view ? "active" : ""}
               onClick={() => { setActiveView(view); }}
+              onKeyDown={(event) => { moveTabFocus(event, view); }}
             >
               {VIEW_LABELS[view]}
             </button>

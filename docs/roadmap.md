@@ -4,7 +4,7 @@ Este é o registro vivo de execução do ProjectFlow. Ele traduz o roadmap defin
 
 `AGENTS.md` continua sendo a fonte de verdade para produto, arquitetura e regras operacionais. Este documento não substitui a especificação e não deve introduzir escopo incompatível com ela.
 
-Última atualização: **29 de agosto de 2026**.
+Última atualização: **30 de agosto de 2026**.
 
 ## Como manter este documento
 
@@ -31,13 +31,13 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Portabilidade concluída; Checkpoint Git 7 consolidado |
-| Fase ativa | Nenhuma; refinamento de backup manual pronto para commit |
-| Próxima fase | Fase 7 — Hardening e distribuição, somente após aceite explícito |
+| Etapa do produto | Hardening e distribuição Windows em andamento |
+| Fase ativa | Fase 7 — primeiro checkpoint técnico validado localmente |
+| Próxima fase | Concluir E2E e validar instalação/atualização offline em máquina limpa |
 | Versão da aplicação | `0.1.0` |
 | Versão do schema SQLite | `4` |
-| Último commit estável | `fc26a29` — `feat: implement project portability and local backups` |
-| Branch de trabalho | `main`, com refinamento de UX de backup ainda não commitado |
+| Último commit estável | `631db54` — `Add holiday catalog and refine backup navigation UX` |
+| Branch de trabalho | `main`, com Fase 7 e refinamentos anteriores ainda não commitados |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -52,7 +52,7 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Concluída | 5 | As views projetam a mesma tarefa sem duplicar dados |
 | 5 — Reutilização | Entregar duplicação e templates | Concluída | 6 | Árvores e relações internas são recriadas com novos UUIDs |
 | 6 — Portabilidade | Entregar exportação, importação e backup | Concluída | 7 | Round-trip preserva semanticamente o workspace |
-| 7 — Hardening e distribuição | Preparar o produto para uso real no Windows | Planejada | 8 | Instalador e operação offline validados em máquina limpa |
+| 7 — Hardening e distribuição | Preparar o produto para uso real no Windows | Em andamento | 8 | Instalador e operação offline validados em máquina limpa |
 
 ## Fase 0 — Ambiente
 
@@ -206,18 +206,18 @@ Critério de saída atendido: exportação e importação preservam semanticamen
 
 ## Fase 7 — Hardening e distribuição Windows
 
-Estado: **Planejada**.
+Estado: **Em andamento**.
 
-- [ ] Medir 1.000 tarefas por projeto e 10.000 por workspace.
-- [ ] Ajustar virtualização e processamento de subgrafos quando necessário.
-- [ ] Revisar UX desktop, atalhos, foco, contraste e mensagens de erro.
+- [x] Medir 1.000 tarefas por projeto e 10.000 por workspace.
+- [x] Avaliar virtualização e processamento nos cenários medidos; nenhuma alteração necessária neste checkpoint.
+- [ ] Revisar UX desktop, atalhos, foco, contraste e mensagens de erro (navegação das views por teclado concluída).
 - [ ] Implementar e executar o fluxo E2E mínimo.
-- [ ] Avaliar e documentar MSI/NSIS e estratégia WebView2 offline.
-- [ ] Gerar build release Windows x64 e instalador.
+- [x] Avaliar e documentar MSI/NSIS e estratégia WebView2 offline.
+- [x] Gerar build release Windows x64 e instaladores padrão/offline.
 - [ ] Testar instalação em máquina Windows limpa sem toolchain.
 - [ ] Validar funcionamento integralmente offline.
 - [ ] Validar preservação de dados em atualização, reinstalação e desinstalação.
-- [ ] Documentar instalação, atualização, desinstalação e recuperação.
+- [x] Documentar instalação, atualização, desinstalação e recuperação.
 
 Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verificados em ambiente limpo.
 
@@ -233,7 +233,7 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 5 — Tabela/Kanban/Gantt | Concluído | `36b2096` |
 | 6 — Duplicação/templates | Concluído | `2a6faef` — reutilização consolidada |
 | 7 — Export/import/backup | Concluído | `fc26a29` — portabilidade e backups consolidados |
-| 8 — Empacotamento Windows | Planejado | — |
+| 8 — Empacotamento Windows | Em andamento | instaladores locais padrão e offline gerados; máquina limpa pendente |
 
 Os Checkpoints 1 e 2 foram consolidados no mesmo commit porque a primeira entrega validada incluiu scaffold, qualidade, SQLite e migrations. Futuros checkpoints podem conter vários commits pequenos e coerentes.
 
@@ -246,7 +246,7 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 | Biblioteca ou estratégia da Tabela | Antes de adicionar uma dependência de grid | A base atual usa HTML nativo; ADR se uma dependência estrutural for necessária |
 | Biblioteca de Gantt | Resolvida na Fase 4 | ADR 013 — SVAR React Gantt 2.7.1 |
 | Formato final `.projectflow` | Antes da Fase 6 | `import-export.md` e ADR se necessário |
-| Bundle WebView2 e instalador offline | Durante a Fase 7 | ADR de distribuição |
+| Bundle WebView2 e instalador offline | Resolvida na Fase 7 | ADR 017 — NSIS padrão + variante offline |
 
 ## Histórico de evolução
 
@@ -676,6 +676,30 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
   release local de teste foi recompilado e a barra, o calendário e os templates
   foram conferidos na janela Tauri real.
 - Commit: `não commitado`; nenhuma operação remota foi executada.
+
+### 30 de agosto de 2026 — Início da Fase 7: distribuição e hardening
+
+- O ADR 017 escolheu NSIS por usuário como instalador principal e uma variante
+  separada com o instalador offline do WebView2; MSI fica reservado a uma
+  necessidade futura de implantação corporativa.
+- Downgrades foram bloqueados. Os instaladores usam português do Brasil com
+  inglês como fallback e não alteram a localização do banco no perfil.
+- Os dois pacotes x64 foram gerados localmente: padrão com 3.916.872 bytes e
+  offline com 265.739.077 bytes; hashes estão em `environment.md`.
+- Testes de desempenho reproduzíveis aprovaram o scheduler encadeado com 1.000
+  tarefas em 39 ms e a projeção hierárquica de 10.000 tarefas em 5–6 ms neste
+  host. Os limites de segurança são executados separadamente e no CI.
+- As abas Tabela, Kanban e Gantt receberam foco roving e navegação por setas,
+  Home e End, com teste de interface.
+- O runner E2E oficial WebdriverIO/Tauri foi avaliado e retirado: a resolução
+  atual introduzia 15 alertas altos somente em dependências de desenvolvimento.
+  Produção não foi afetada e a auditoria voltou a zero. O E2E nativo permanece
+  pendente de uma combinação segura.
+- O workflow Windows agora valida os orçamentos de desempenho e gera o NSIS,
+  cobrindo o empacotamento em vez de apenas o executável sem bundle.
+- A validação de instalação, atualização, desinstalação e operação sem internet
+  numa máquina limpa continua pendente e impede concluir a fase.
+- Commit: `não commitado`; nenhum push, release ou alteração remota foi feita.
 
 ## Regras permanentes de acompanhamento
 

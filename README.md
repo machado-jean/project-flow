@@ -42,8 +42,10 @@ As Fases 0 a 6 estão concluídas e o Checkpoint Git 7 foi consolidado no commit
   automáticos;
 - interface integralmente em português.
 
-A próxima etapa é a Fase 7, dedicada a hardening, acessibilidade, E2E e
-distribuição Windows. Ela não deve ser iniciada automaticamente.
+A Fase 7 está em andamento. O primeiro incremento adicionou orçamentos de
+desempenho, navegação das views por teclado e instaladores NSIS padrão e
+offline. A validação em uma máquina Windows limpa e o E2E nativo ainda são
+critérios de saída pendentes.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -65,6 +67,7 @@ Documentação principal:
 - [duplicação, templates e auditoria manual](docs/reuse.md);
 - [roadmap e histórico](docs/roadmap.md);
 - [importação, exportação e backup](docs/import-export.md);
+- [instalação e manutenção no Windows](docs/installation-windows.md);
 - [decisões arquiteturais](docs/decisions/).
 
 ## Preparação
@@ -121,6 +124,7 @@ variante documentada interrompe a abertura sem escrita; detalhes estão no
 npm run lint
 npm run typecheck
 npm test
+npm run test:performance
 npm run build
 
 cd src-tauri
@@ -138,6 +142,17 @@ npm run tauri:build:test
 
 O resultado fica em `src-tauri\target\release\project-flow.exe`. Não distribuir
 esse binário, pois ele referencia a `.local` do checkout em que foi compilado.
+
+Para gerar instaladores de produção:
+
+```powershell
+npm run tauri:build:installer
+npm run tauri:build:installer:offline
+```
+
+O primeiro é compacto e usa o bootstrapper do WebView2 somente se necessário;
+o segundo incorpora o runtime para instalação sem internet. Consulte
+[installation-windows.md](docs/installation-windows.md) antes de distribuir.
 
 O build de distribuição e o release local de teste usam o mesmo nome e caminho
 de saída. Portanto, executar `npm run tauri:build -- --no-bundle` substitui o

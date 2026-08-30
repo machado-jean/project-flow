@@ -15,13 +15,16 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json --pretty false && tsc --noEmit -p tsconfig.node.json --pretty false",
     "test": "vitest run",
+    "test:performance": "vitest run --config vitest.performance.config.ts --reporter=verbose",
     "test:watch": "vitest",
     "check": "npm run lint && npm run typecheck && npm run test",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:test": "tauri build --no-bundle --features shared-dev-data"
+    "tauri:build:test": "tauri build --no-bundle --features shared-dev-data",
+    "tauri:build:installer": "tauri build --bundles nsis",
+    "tauri:build:installer:offline": "tauri build --bundles nsis --config src-tauri/tauri.offline.conf.json"
   },
   "dependencies": {
     "@svar-ui/react-gantt": "2.7.1",

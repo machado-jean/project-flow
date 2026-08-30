@@ -845,6 +845,32 @@ describe("aplicação ProjectFlow", () => {
     expect(await screen.findByLabelText("Status da tarefa")).toHaveValue("IN_PROGRESS");
   });
 
+  it("permite alternar as visualizações pelo teclado", async () => {
+    const repository = new MemoryWorkspaceRepository({
+      calendars: [defaultCalendar, continuousCalendar],
+      projects: [project()],
+      tasks: [task()],
+      dependencies: [],
+      templates: [],
+      templateItems: [],
+      templateDependencies: [],
+    });
+    render(<App repository={repository} />);
+
+    const tableTab = await screen.findByRole("tab", { name: "Tabela" });
+    tableTab.focus();
+    fireEvent.keyDown(tableTab, { key: "ArrowRight" });
+
+    const kanbanTab = screen.getByRole("tab", { name: "Kanban" });
+    expect(kanbanTab).toHaveFocus();
+    expect(kanbanTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("heading", { name: "Quadro Kanban" })).toBeVisible();
+
+    fireEvent.keyDown(kanbanTab, { key: "End" });
+    expect(screen.getByRole("tab", { name: "Gantt" })).toHaveFocus();
+    expect(await screen.findByRole("heading", { name: "Gráfico de Gantt" })).toBeVisible();
+  });
+
   it("mantém filtros ao alternar entre Tabela, Kanban e Gantt", async () => {
     const first = scheduledTask(TASK_ID, "Desenvolver interface", "2026-08-28", {
       tags: ["frontend"],

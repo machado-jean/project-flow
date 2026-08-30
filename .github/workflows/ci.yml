@@ -37,6 +37,9 @@ jobs:
       - name: Validate frontend
         run: npm run check
 
+      - name: Validate performance budgets
+        run: npm run test:performance
+
       - name: Check Rust formatting
         working-directory: src-tauri
         run: cargo fmt --all -- --check
@@ -53,5 +56,5 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy --locked --all-targets -- -D warnings
 
-      - name: Build Tauri executable
-        run: npm run tauri:build -- --no-bundle
+      - name: Build Windows installer
+        run: npm run tauri:build:installer

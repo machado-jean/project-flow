@@ -32,7 +32,8 @@ A seleção seguiu a ordem definida em `AGENTS.md`: compatibilidade, estabilidad
 
 O Build Tools foi instalado pelo canal Stable oficial, com o workload “Desktop development with C++” e componentes recomendados ([componentes oficiais](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-build-tools?view=visualstudio)). O WebView2 existente já atendia ao requisito e foi preservado.
 
-VBSCRIPT é necessário somente para gerar MSI. Não foi habilitado nem alterado nesta entrega; a checagem definitiva pertence à fase de distribuição.
+VBSCRIPT é necessário somente para gerar MSI. A Fase 7 escolheu NSIS para a V1,
+portanto o recurso não foi habilitado nem alterado.
 
 ## Dependências locais principais
 
@@ -150,8 +151,8 @@ executável; executar apenas `cargo build` deixaria a janela dependente do
 estável [documentado pelo Rust](https://doc.rust-lang.org/stable/cargo/reference/features.html),
 e o [plugin SQL oficial](https://v2.tauri.app/plugin/sql/) resolve por padrão
 caminhos relativos contra `AppConfig`; por isso o modo local fornece uma URL
-absoluta e deliberada. A validação de instaladores MSI/NSIS e de uma máquina
-Windows limpa permanece reservada ao Checkpoint E.
+absoluta e deliberada. Os instaladores NSIS foram gerados na Fase 7; a validação
+em uma máquina Windows limpa permanece reservada ao Checkpoint E.
 
 Os modos de distribuição e teste escrevem no mesmo
 `src-tauri/target/release/project-flow.exe`; o último build vence. Depois de
@@ -189,3 +190,42 @@ instalação global. O chunk do catálogo é carregado quando a prévia de feria
 solicitada; atribuição e licença estão em `THIRD_PARTY_NOTICES.md`. Foram
 aprovados 84 testes TypeScript/React, 29 testes Rust/SQLite, lint, typecheck,
 build web, Cargo fmt/check/test/Clippy e auditoria npm sem vulnerabilidades.
+
+## Fase 7 — primeiro checkpoint de hardening e distribuição
+
+Nenhuma ferramenta global foi instalada ou atualizada. O Tauri reutilizou o
+toolchain já validado e baixou para seu cache de build o NSIS 3.11 e
+`nsis_tauri_utils` 0.5.3 a partir dos repositórios oficiais do projeto Tauri.
+
+Comandos adicionados e validados:
+
+```powershell
+npm run test:performance
+npm run tauri:build:installer
+npm run tauri:build:installer:offline
+```
+
+Artefatos locais de 30/08/2026, preservados fora do Git em
+`.local/distribution/`:
+
+| Variante | Tamanho | SHA-256 |
+| --- | ---: | --- |
+| NSIS padrão | 3.916.872 bytes | `C47E1C6233D64BD21C816F7C7D0D8286B69C7AFFF9EB8425479546A643FB1827` |
+| NSIS offline | 265.739.077 bytes | `2652669E39C9FA60708895C23FA4E2777C01255473B58B8538426712063C1D6D` |
+
+O pacote offline incorpora o WebView2 redistribuível obtido pela URL oficial da
+Microsoft usada pelo Tauri. A diferença de tamanho observada é compatível com a
+estratégia documentada no ADR 017.
+
+A combinação E2E recomendada pelo Tauri foi avaliada com
+`@wdio/tauri-service` 1.3.0 e WebdriverIO 9.31.x. Ela foi removida antes de
+qualquer implementação porque a resolução disponível introduziu 15 alertas npm
+de severidade alta em dependências de desenvolvimento. `npm audit` voltou a
+reportar zero vulnerabilidades depois da remoção. O runner nativo permanece
+pendente até existir uma resolução segura e compatível; nenhum plugin WDIO foi
+incluído no binário de produção.
+
+Gates deste checkpoint: 85 testes TypeScript/React, 2 testes de desempenho e
+29 testes Rust/SQLite aprovados; lint, typecheck, build web, Cargo
+fmt/check/test/Clippy, build dos dois instaladores, release local de teste e
+auditoria npm sem vulnerabilidades também aprovados.
