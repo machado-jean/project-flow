@@ -132,7 +132,7 @@ pub struct TaskTemplateDependencyRecord {
     pub updated_at: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DuplicationBundleRecord {
     pub project: Option<ProjectRecord>,
@@ -142,7 +142,7 @@ pub struct DuplicationBundleRecord {
     pub dependencies: Vec<DependencyRecord>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskTemplateBundleRecord {
     pub template: TaskTemplateRecord,
@@ -166,7 +166,7 @@ pub struct ScheduleChangeSetRecord {
     pub task_tree_ids_to_delete: Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceData {
     pub calendars: Vec<CalendarRecord>,
@@ -345,7 +345,7 @@ pub async fn save_calendar(
     Ok(())
 }
 
-async fn save_calendar_record(
+pub(crate) async fn save_calendar_record(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     calendar: &CalendarRecord,
 ) -> Result<(), sqlx::Error> {
@@ -408,7 +408,7 @@ pub async fn save_project(pool: &SqlitePool, project: &ProjectRecord) -> Result<
     Ok(())
 }
 
-async fn save_project_record(
+pub(crate) async fn save_project_record(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     project: &ProjectRecord,
 ) -> Result<(), sqlx::Error> {
@@ -469,7 +469,7 @@ pub async fn save_task(pool: &SqlitePool, task: &TaskRecord) -> Result<(), sqlx:
     Ok(())
 }
 
-async fn save_task_record(
+pub(crate) async fn save_task_record(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     task: &TaskRecord,
 ) -> Result<(), sqlx::Error> {
@@ -546,7 +546,7 @@ async fn save_task_record(
     Ok(())
 }
 
-async fn save_dependency_record(
+pub(crate) async fn save_dependency_record(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     dependency: &DependencyRecord,
 ) -> Result<(), sqlx::Error> {
@@ -594,7 +594,7 @@ pub async fn save_duplication_bundle(
     Ok(())
 }
 
-async fn save_template_item_record(
+pub(crate) async fn save_template_item_record(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     item: &TaskTemplateItemRecord,
 ) -> Result<(), sqlx::Error> {
@@ -639,7 +639,7 @@ async fn save_template_item_record(
     Ok(())
 }
 
-async fn save_template_dependency_record(
+pub(crate) async fn save_template_dependency_record(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
     dependency: &TaskTemplateDependencyRecord,
 ) -> Result<(), sqlx::Error> {
@@ -667,6 +667,16 @@ pub async fn save_template_bundle(
     bundle: &TaskTemplateBundleRecord,
 ) -> Result<(), sqlx::Error> {
     let mut transaction = pool.begin().await?;
+    save_template_bundle_record(&mut transaction, bundle).await?;
+    cleanup_orphan_tags(&mut transaction).await?;
+    transaction.commit().await?;
+    Ok(())
+}
+
+pub(crate) async fn save_template_bundle_record(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    bundle: &TaskTemplateBundleRecord,
+) -> Result<(), sqlx::Error> {
     sqlx::query(
         "INSERT INTO task_templates (id, name, description, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?)
@@ -680,11 +690,11 @@ pub async fn save_template_bundle(
     .bind(&bundle.template.description)
     .bind(&bundle.template.created_at)
     .bind(&bundle.template.updated_at)
-    .execute(&mut *transaction)
+    .execute(&mut **transaction)
     .await?;
     sqlx::query("DELETE FROM task_template_items WHERE template_id = ?")
         .bind(&bundle.template.id)
-        .execute(&mut *transaction)
+        .execute(&mut **transaction)
         .await?;
 
     let mut inserted = HashSet::<String>::new();
@@ -698,7 +708,7 @@ pub async fn save_template_bundle(
                 .as_ref()
                 .is_none_or(|parent_id| inserted.contains(parent_id))
             {
-                save_template_item_record(&mut transaction, item).await?;
+                save_template_item_record(transaction, item).await?;
                 inserted.insert(item.id.clone());
             } else {
                 pending.push(item);
@@ -712,10 +722,8 @@ pub async fn save_template_bundle(
         remaining = pending;
     }
     for dependency in &bundle.dependencies {
-        save_template_dependency_record(&mut transaction, dependency).await?;
+        save_template_dependency_record(transaction, dependency).await?;
     }
-    cleanup_orphan_tags(&mut transaction).await?;
-    transaction.commit().await?;
     Ok(())
 }
 
@@ -804,7 +812,7 @@ pub async fn delete_task_tree(pool: &SqlitePool, task_id: &str) -> Result<(), sq
     Ok(())
 }
 
-async fn cleanup_orphan_tags(
+pub(crate) async fn cleanup_orphan_tags(
     transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
 ) -> Result<(), sqlx::Error> {
     sqlx::query(

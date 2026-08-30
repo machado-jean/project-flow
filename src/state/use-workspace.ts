@@ -86,6 +86,7 @@ export interface WorkspaceController {
   readonly error: string | null;
   readonly selectProject: (projectId: string) => void;
   readonly clearError: () => void;
+  readonly reloadWorkspace: () => void;
   readonly createProject: (input: CreateProjectInput) => Promise<Project | null>;
   readonly saveProject: (project: Project) => Promise<boolean>;
   readonly moveProject: (projectId: string, direction: MoveDirection) => Promise<boolean>;
@@ -229,6 +230,7 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reloadVersion, setReloadVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -283,10 +285,12 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
         setTemplateItems(snapshot.templateItems);
         setTemplateDependencies(snapshot.templateDependencies);
         setSchedulingConflicts(loadedConflicts);
-        setSelectedProjectId(
-          snapshot.projects.find((project) => !project.isArchived)?.id ??
-            snapshot.projects[0]?.id ??
-            null,
+        setSelectedProjectId((current) =>
+          snapshot.projects.some((project) => project.id === current)
+            ? current
+            : snapshot.projects.find((project) => !project.isArchived)?.id ??
+              snapshot.projects[0]?.id ??
+              null,
         );
       })
       .catch((loadError: unknown) => {
@@ -298,7 +302,7 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
     return () => {
       active = false;
     };
-  }, [repository]);
+  }, [repository, reloadVersion]);
 
   const runMutation = useCallback(async <T,>(mutation: () => Promise<T>): Promise<T | null> => {
     setIsSaving(true);
@@ -1104,6 +1108,10 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
     error,
     selectProject: setSelectedProjectId,
     clearError: () => { setError(null); },
+    reloadWorkspace: () => {
+      setIsLoading(true);
+      setReloadVersion((current) => current + 1);
+    },
     createProject,
     saveProject,
     moveProject,

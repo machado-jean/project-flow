@@ -2,6 +2,7 @@ mod commands;
 mod database;
 mod migration_compatibility;
 mod persistence;
+mod portability;
 
 use database::{database_url, migrations, DATABASE_SCHEMA_VERSION};
 use migration_compatibility::{DevelopmentDatabaseOutcome, MigrationCompatibilityOutcome};
@@ -24,8 +25,16 @@ pub fn run() {
             commands::delete_task_tree,
             commands::save_duplication_bundle,
             commands::save_template_bundle,
-            commands::delete_template
+            commands::delete_template,
+            commands::export_project,
+            commands::export_workspace,
+            commands::choose_import_package,
+            commands::apply_import_package,
+            commands::create_backup,
+            commands::choose_restore_backup,
+            commands::restore_backup
         ])
+        .plugin(tauri_plugin_dialog::init())
         .plugin(migration_compatibility::init())
         .plugin(
             tauri_plugin_log::Builder::new()

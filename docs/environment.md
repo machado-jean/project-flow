@@ -53,6 +53,11 @@ VBSCRIPT é necessário somente para gerar MSI. Não foi habilitado nem alterado
 | SQLite runtime | 3.46.0 | domínio público | persistência embarcada |
 | Tauri Log plugin | 2.9.0 | MIT/Apache-2.0 | logs locais |
 | SVAR React Gantt | 2.7.1 | MIT | renderer local do Gantt, carregado sob demanda |
+| Tauri Dialog plugin | 2.7.2 | MIT/Apache-2.0 | seletores nativos de exportação/importação |
+| zip (crate) | 8.6.0 | MIT | leitura e escrita estrita de `.projectflow` |
+| sha2 (crate) | 0.11.0 | MIT/Apache-2.0 | integridade SHA-256 dos pacotes |
+| uuid (crate) | 1.26.0 | MIT/Apache-2.0 | remapeamento na importação como cópia |
+| chrono (crate) | 0.4.45 | MIT/Apache-2.0 | timestamps e nomes de backup |
 
 Versões JavaScript ficam em `package.json`/`package-lock.json`; versões Rust ficam em `Cargo.toml`/`Cargo.lock`. `rust-toolchain.toml` fixa Rust 1.98.0. Não há Tauri CLI, React, TypeScript, Vite ou bibliotecas de teste instalados globalmente.
 
@@ -84,6 +89,12 @@ npm run tauri add sql
 cargo add tauri-plugin-sql --features sqlite
 npm run tauri add log
 npm install @svar-ui/react-gantt@2.7.1 --save-exact
+cd src-tauri
+cargo add tauri-plugin-dialog@2.7.2
+cargo add zip@8.6.0 --no-default-features
+cargo add sha2@0.11.0
+cargo add uuid@1.26.0 --features v4
+cargo add chrono@0.4.45 --features clock,std
 ```
 
 O Gantt foi instalado localmente após avaliação de licença, manutenção,
@@ -141,6 +152,13 @@ caminhos relativos contra `AppConfig`; por isso o modo local fornece uma URL
 absoluta e deliberada. A validação de instaladores MSI/NSIS e de uma máquina
 Windows limpa permanece reservada ao Checkpoint E.
 
+Os modos de distribuição e teste escrevem no mesmo
+`src-tauri/target/release/project-flow.exe`; o último build vence. Depois de
+reproduzir localmente o passo de distribuição do CI, executar novamente
+`npm run tauri:build:test` antes de entregar o executável para auditoria. Isso
+troca apenas o destino compilado do banco; não copia, apaga ou mistura os dois
+arquivos SQLite.
+
 No fechamento da Fase 5, todos esses gates voltaram a ser executados: lint e
 typecheck aprovados, 78 testes TypeScript/React e 23 testes Rust/SQLite
 aprovados, build web concluído, Cargo fmt/check e Clippy sem erros, auditoria
@@ -152,3 +170,15 @@ criado o backup verificado
 SHA-256 da origem (`4ACF477596010BD7D0BA8E23AE2271194BC631609B5C99E782D0DB0BEA1CDDB7`).
 Nenhuma ferramenta global, dependência npm ou crate foi instalada ou atualizada
 na Fase 5.
+
+Na Fase 6 nenhuma ferramenta global ou dependência npm foi adicionada. Os cinco
+crates acima foram instalados somente no `src-tauri`. O plugin de diálogo usa a
+API nativa do Windows; `zip` foi fixado na linha estável 8.6 e sem features de
+compressão, pois o formato 1 aceita somente entradas `Stored`.
+
+No fechamento da Fase 6, lint, typecheck, build web, Cargo fmt/check, Clippy,
+auditoria npm, build Tauri de distribuição e release local de teste foram
+aprovados. Passaram 80 testes TypeScript/React e 29 testes Rust/SQLite; seis dos
+testes nativos cobrem especificamente portabilidade, integridade, rollback e
+restauração. O release de teste foi gerado por último e o log confirmou schema
+4 usando `.local/data/projectflow.sqlite`.

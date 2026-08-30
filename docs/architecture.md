@@ -96,6 +96,8 @@ geradas são confirmados juntos. Templates usam `save_template_bundle`, também
 atômico. A exclusão de um template não altera tarefas que já foram aplicadas,
 pois cada aplicação gera entidades independentes.
 
+A Fase 6 acrescenta `src-tauri/src/portability.rs`. Exportação, inspeção de pacote, importação seletiva, backup e restauração ficam na camada nativa porque dependem de filesystem, ZIP, hash e snapshots SQLite. A UI recebe somente catálogos já validados e escolhas explícitas; não interpreta o arquivo nem decide como UUIDs, relações ou calendários são reconciliados. Importação e restauração reutilizam helpers transacionais da persistência, mantendo constraints e tags normalizadas.
+
 ## Fluxo do scheduler
 
 ```text
@@ -147,6 +149,7 @@ regras detalhadas e a matriz de testes estão em [scheduling.md](scheduling.md).
 - Logs usam o diretório recomendado `LocalAppData` e nível máximo `Info`.
 - Bancos e backups de desenvolvimento ficam em `.local/`, fora do Git; builds
   instaláveis não dependem desse diretório.
+- Pacotes externos passam por limites, caminho confinado, SHA-256, quick check, chaves estrangeiras, schema, catálogo e validação de grafos antes de qualquer transação; um backup automático precede importação e restauração.
 
 ## Qualidade
 

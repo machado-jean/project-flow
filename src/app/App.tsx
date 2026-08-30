@@ -5,6 +5,7 @@ import { CalendarSettings } from "../features/projects/CalendarSettings";
 import { ProjectSidebar } from "../features/projects/ProjectSidebar";
 import { ProjectViews } from "../features/views/ProjectViews";
 import { TemplateLibrary } from "../features/templates/TemplateLibrary";
+import { PortabilityPanel } from "../features/import-export/PortabilityPanel";
 import { TauriWorkspaceRepository } from "../repositories/tauri-workspace-repository";
 import type { WorkspaceRepository } from "../repositories/workspace-repository";
 import { useWorkspace } from "../state/use-workspace";
@@ -49,6 +50,13 @@ function App({ repository }: AppProps) {
             <button type="button" onClick={workspace.clearError}>Fechar</button>
           </div>
         ) : null}
+
+        <PortabilityPanel
+          repository={activeRepository}
+          selectedProject={workspace.selectedProject}
+          disabled={workspace.isLoading || workspace.isSaving}
+          onWorkspaceChanged={workspace.reloadWorkspace}
+        />
 
         {workspace.isLoading ? (
           <section className="center-state" aria-live="polite">

@@ -18,7 +18,13 @@ import type {
   TaskTemplateItem,
 } from "../../../src/domain/templates/template";
 import type {
+  BackupResult,
   DuplicationBundle,
+  ExportResult,
+  ImportPackagePreview,
+  ImportResult,
+  ImportSelection,
+  RestoreResult,
   ScheduleChangeSet,
   WorkspaceRepository,
   WorkspaceSnapshot,
@@ -170,6 +176,9 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
   readonly templateItems: TaskTemplateItem[];
   readonly templateDependencies: TaskTemplateDependency[];
   readonly appliedScheduleChanges: ScheduleChangeSet[] = [];
+  importPreview: ImportPackagePreview | null = null;
+  restorePreview: ImportPackagePreview | null = null;
+  lastImportSelection: ImportSelection | null = null;
 
   constructor(snapshot: Partial<WorkspaceSnapshot> = {}) {
     this.calendars = [...(snapshot.calendars ?? [defaultCalendar])];
@@ -317,9 +326,83 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
     }
     return Promise.resolve();
   }
+
+  exportProject(): Promise<ExportResult | null> {
+    return Promise.resolve({ path: "C:\\exports\\projeto.projectflow", projectCount: 1, templateCount: 0 });
+  }
+
+  exportWorkspace(): Promise<ExportResult | null> {
+    return Promise.resolve({ path: "C:\\exports\\workspace.projectflow", projectCount: this.projects.length, templateCount: this.templates.length });
+  }
+
+  chooseImportPackage(): Promise<ImportPackagePreview | null> {
+    return Promise.resolve(this.importPreview);
+  }
+
+  applyImportPackage(_packagePath: string, selection: ImportSelection): Promise<ImportResult> {
+    this.lastImportSelection = selection;
+    return Promise.resolve({
+      backupPath: "C:\\backups\\antes-importacao.sqlite",
+      importedProjectCount: selection.projects.filter(({ mode }) => mode === "REPLACE").length,
+      copiedProjectCount: selection.projects.filter(({ mode }) => mode === "COPY").length,
+      importedTemplateCount: selection.templateIds.length,
+    });
+  }
+
+  createBackup(): Promise<BackupResult> {
+    return Promise.resolve({ path: "C:\\backups\\manual.sqlite" });
+  }
+
+  chooseRestoreBackup(): Promise<ImportPackagePreview | null> {
+    return Promise.resolve(this.restorePreview);
+  }
+
+  restoreBackup(): Promise<RestoreResult> {
+    return Promise.resolve({ safetyBackupPath: "C:\\backups\\seguranca.sqlite", projectCount: this.projects.length, templateCount: this.templates.length });
+  }
 }
 
 describe("aplicação ProjectFlow", () => {
+  it("permite escolher projetos e templates de um pacote antes de importar", async () => {
+    const repository = new MemoryWorkspaceRepository({ projects: [project()] });
+    repository.importPreview = {
+      packagePath: "C:\\imports\\workspace.projectflow",
+      exportType: "workspace",
+      exportedAt: NOW,
+      schemaVersion: 4,
+      projects: [
+        { id: PROJECT_ID, name: "Projeto existente", updatedAt: NOW, taskCount: 3, existsLocally: true, localUpdatedAt: NOW },
+        { id: "20000000-0000-4000-8000-000000000099", name: "Projeto novo", updatedAt: NOW, taskCount: 5, existsLocally: false, localUpdatedAt: null },
+      ],
+      templates: [
+        { id: "50000000-0000-4000-8000-000000000099", name: "Template novo", updatedAt: NOW, itemCount: 4, existsLocally: false, localUpdatedAt: null },
+      ],
+    };
+    render(<App repository={repository} />);
+    await screen.findByRole("heading", { name: "Tabela de tarefas" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Importar pacote" }));
+    const dialog = await screen.findByRole("dialog", { name: "Escolher conteúdo para importar" });
+    fireEvent.change(within(dialog).getByLabelText("Ação para Projeto existente"), { target: { value: "IGNORE" } });
+    fireEvent.change(within(dialog).getByLabelText("Ação para Projeto novo"), { target: { value: "COPY" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Importar seleção" }));
+
+    await waitFor(() => {
+      expect(repository.lastImportSelection).toEqual({
+        projects: [{ projectId: "20000000-0000-4000-8000-000000000099", mode: "COPY" }],
+        templateIds: ["50000000-0000-4000-8000-000000000099"],
+      });
+    });
+    expect(await screen.findByText(/Importação concluída:/)).toBeVisible();
+  });
+
+  it("cria backup manual e informa onde ele foi salvo", async () => {
+    render(<App repository={new MemoryWorkspaceRepository()} />);
+    await screen.findByRole("heading", { name: "Organize seu primeiro projeto" });
+    fireEvent.click(screen.getByRole("button", { name: "Criar backup" }));
+    expect(await screen.findByText(/Backup verificado criado em C:\\backups\\manual.sqlite/)).toBeVisible();
+  });
+
   it("apresenta o estado vazio inteiramente em português", async () => {
     render(<App repository={new MemoryWorkspaceRepository()} />);
 

@@ -12,6 +12,12 @@ import {
   validateTaskTemplate,
 } from "../domain/templates/template";
 import type {
+  BackupResult,
+  ExportResult,
+  ImportPackagePreview,
+  ImportResult,
+  ImportSelection,
+  RestoreResult,
   ScheduleChangeSet,
   WorkspaceRepository,
   WorkspaceSnapshot,
@@ -121,5 +127,33 @@ export class TauriWorkspaceRepository implements WorkspaceRepository {
 
   async deleteTemplate(templateId: string): Promise<void> {
     await invoke("delete_template", { templateId });
+  }
+
+  exportProject(projectId: string, suggestedName: string): Promise<ExportResult | null> {
+    return invoke("export_project", { projectId, suggestedName });
+  }
+
+  exportWorkspace(): Promise<ExportResult | null> {
+    return invoke("export_workspace");
+  }
+
+  chooseImportPackage(): Promise<ImportPackagePreview | null> {
+    return invoke("choose_import_package");
+  }
+
+  applyImportPackage(packagePath: string, selection: ImportSelection): Promise<ImportResult> {
+    return invoke("apply_import_package", { packagePath, selection });
+  }
+
+  createBackup(): Promise<BackupResult> {
+    return invoke("create_backup");
+  }
+
+  chooseRestoreBackup(): Promise<ImportPackagePreview | null> {
+    return invoke("choose_restore_backup");
+  }
+
+  restoreBackup(backupPath: string): Promise<RestoreResult> {
+    return invoke("restore_backup", { backupPath });
   }
 }

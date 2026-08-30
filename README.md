@@ -4,8 +4,8 @@ ProjectFlow é uma aplicação desktop local-first para planejamento de projetos
 
 ## Estado atual
 
-As Fases 0 a 5 estão concluídas localmente e a Fase 5 está pronta para o
-Checkpoint Git 6. O recorte funcional atual contém:
+As Fases 0 a 6 estão concluídas localmente e a Fase 6 está pronta para o
+Checkpoint Git 7. O recorte funcional atual contém:
 
 - Tauri 2, React, TypeScript e Vite;
 - SQLite embarcado com migrations versionadas;
@@ -34,10 +34,14 @@ Checkpoint Git 6. O recorte funcional atual contém:
 - preservação somente das dependências internas ao conteúdo duplicado;
 - biblioteca global de templates de árvores, com aplicação em qualquer projeto
   e data de início escolhida;
+- exportação de projeto e workspace em pacote `.projectflow` validado;
+- importação seletiva com atualização por UUID ou cópia independente;
+- seleção individual de templates e tratamento seguro de calendários;
+- backup SQLite verificado e restauração integral com backup de segurança;
 - interface integralmente em português.
 
-Importação, exportação e backup/restore ainda não foram implementados e
-permanecem na Fase 6.
+A próxima etapa é a Fase 7, dedicada a hardening, acessibilidade, E2E e
+distribuição Windows. Ela não deve ser iniciada automaticamente.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -58,7 +62,7 @@ Documentação principal:
 - [Tabela, Kanban, Gantt e auditoria manual](docs/views.md);
 - [duplicação, templates e auditoria manual](docs/reuse.md);
 - [roadmap e histórico](docs/roadmap.md);
-- [importação/exportação planejada](docs/import-export.md);
+- [importação, exportação e backup](docs/import-export.md);
 - [decisões arquiteturais](docs/decisions/).
 
 ## Preparação
@@ -133,7 +137,12 @@ npm run tauri:build:test
 O resultado fica em `src-tauri\target\release\project-flow.exe`. Não distribuir
 esse binário, pois ele referencia a `.local` do checkout em que foi compilado.
 
-No fechamento da Fase 5, os números e gates finais estão registrados em
+O build de distribuição e o release local de teste usam o mesmo nome e caminho
+de saída. Portanto, executar `npm run tauri:build -- --no-bundle` substitui o
+`.exe` pelo modo de produção, que lê `AppConfig`; para voltar a auditar os dados
+de desenvolvimento nesse caminho, execute `npm run tauri:build:test` por último.
+
+No fechamento da Fase 6, os números e gates finais estão registrados em
 [docs/environment.md](docs/environment.md). O release local de auditoria é
 regerado no mesmo caminho e preserva o banco compartilhado de desenvolvimento.
 

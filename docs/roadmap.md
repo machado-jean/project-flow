@@ -31,15 +31,15 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Reutilização concluída; Checkpoint Git 6 preparado |
-| Fase ativa | Nenhuma; Fase 5 pronta para auditoria e commit do usuário |
-| Próxima fase | Fase 6 — Portabilidade, somente após aceite explícito |
+| Etapa do produto | Portabilidade concluída; Checkpoint Git 7 preparado |
+| Fase ativa | Nenhuma; Fase 6 pronta para auditoria e commit do usuário |
+| Próxima fase | Fase 7 — Hardening e distribuição, somente após aceite explícito |
 | Versão da aplicação | `0.1.0` |
 | Versão do schema SQLite | `4` |
-| Último commit estável | `36b2096` — `Implement ProjectFlow foundation and core task workflows` |
-| Branch de trabalho | `main`, com o Checkpoint Git 6 ainda não commitado |
+| Último commit estável | `5480df7` — `docs: document LF normalization for Windows migrations` |
+| Branch de trabalho | `main`, com o Checkpoint Git 7 ainda não commitado |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
-| Funcionalidades de negócio | Core, scheduler, views, duplicação e templates implementados |
+| Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
 ## Visão geral das fases
 
@@ -51,7 +51,7 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | 3 — Scheduling | Implementar calendário, dependência FS e propagação | Concluída | 4 | Scheduler FS estável e coberto pelos casos obrigatórios |
 | 4 — Views | Entregar Kanban, Gantt e filtros sincronizados | Concluída | 5 | As views projetam a mesma tarefa sem duplicar dados |
 | 5 — Reutilização | Entregar duplicação e templates | Concluída | 6 | Árvores e relações internas são recriadas com novos UUIDs |
-| 6 — Portabilidade | Entregar exportação, importação e backup | Planejada | 7 | Round-trip preserva semanticamente o workspace |
+| 6 — Portabilidade | Entregar exportação, importação e backup | Concluída | 7 | Round-trip preserva semanticamente o workspace |
 | 7 — Hardening e distribuição | Preparar o produto para uso real no Windows | Planejada | 8 | Instalador e operação offline validados em máquina limpa |
 
 ## Fase 0 — Ambiente
@@ -188,19 +188,21 @@ válida, omitem relações externas e nunca compartilham identidade com a origem
 
 ## Fase 6 — Portabilidade
 
-Estado: **Planejada**.
+Estado: **Concluída; pronta para auditoria e commit local**.
 
-- [ ] Finalizar e documentar o formato `.projectflow`.
-- [ ] Exportar projeto.
-- [ ] Exportar workspace completo.
-- [ ] Validar manifest, schema, versão, integridade, tamanho e entradas.
-- [ ] Impedir path traversal e execução de conteúdo importado.
-- [ ] Importar por staging e transação, sem sobrescrita silenciosa.
-- [ ] Implementar backup e restore locais.
-- [ ] Testar round-trip semântico em workspace vazio.
-- [ ] Atualizar [import-export.md](import-export.md).
+- [x] Finalizar e documentar o formato `.projectflow`.
+- [x] Exportar projeto.
+- [x] Exportar workspace completo.
+- [x] Validar manifest, schema, versão, integridade, tamanho e entradas.
+- [x] Impedir path traversal e execução de conteúdo importado.
+- [x] Importar projetos e templates selecionados por staging e transação.
+- [x] Atualizar projeto por UUID ou importar como cópia remapeada.
+- [x] Criar backup automático antes de importação e restauração.
+- [x] Implementar backup e restore locais.
+- [x] Testar round-trip semântico em workspace vazio.
+- [x] Atualizar [import-export.md](import-export.md) e ADR 015.
 
-Critério de saída: exportação e importação preservam semanticamente os dados e falhas relevantes revertem a operação inteira.
+Critério de saída atendido: exportação e importação preservam semanticamente os dados selecionados, não alteram projetos ignorados e falhas relevantes revertem a operação inteira.
 
 ## Fase 7 — Hardening e distribuição Windows
 
@@ -229,8 +231,8 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 3 — Project/Task core | Concluído | `1b3e9c6` |
 | 4 — Scheduler FS | Concluído | `6f02673` |
 | 5 — Tabela/Kanban/Gantt | Concluído | `36b2096` |
-| 6 — Duplicação/templates | Pronto para commit | entrega local validada, ainda não commitada |
-| 7 — Export/import/backup | Planejado | — |
+| 6 — Duplicação/templates | Concluído | `2a6faef` — reutilização consolidada |
+| 7 — Export/import/backup | Pronto para commit | entrega local implementada e validada |
 | 8 — Empacotamento Windows | Planejado | — |
 
 Os Checkpoints 1 e 2 foram consolidados no mesmo commit porque a primeira entrega validada incluiu scaffold, qualidade, SQLite e migrations. Futuros checkpoints podem conter vários commits pequenos e coerentes.
@@ -578,7 +580,46 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
   editar migrations publicadas nem bancos existentes.
 - A falha era do teste de integridade do repositório, não do SQLite nem dos
   dados. O checksum canônico da migration 3 permanece inalterado.
+- Ao reproduzir todo o CI localmente, o build de distribuição substituiu o
+  release de teste no mesmo caminho e exibiu o banco antigo de `AppConfig`. O
+  release foi recompilado com `shared-dev-data`, e o log confirmou novamente
+  schema 4 em `.local/data/projectflow.sqlite`. Ambos os bancos foram preservados.
 - Commit: `não commitado`; nenhuma nova execução remota foi disparada.
+
+### 29 de agosto de 2026 — Fase 6: portabilidade e recuperação
+
+- O formato `.projectflow` versão 1 foi implementado como ZIP estrito com
+  `manifest.json`, `data.sqlite` e `README.txt`, catálogo verificável e hash
+  SHA-256 do snapshot.
+- A barra **Dados** permite exportar projeto ou workspace, criar backup,
+  inspecionar/importar pacote e restaurar um backup completo usando seletores
+  nativos do Windows.
+- A prévia permite escolher projetos e templates. Projeto com UUID conhecido é
+  atualizado integralmente por padrão; **Importar como cópia** remapeia projeto,
+  tarefas, pais e dependências internas.
+- Projetos não selecionados permanecem intactos. Calendários ausentes são
+  importados, equivalentes são reutilizados e colisões semânticas são copiadas
+  e remapeadas sem alterar outros projetos locais.
+- Pacotes são limitados e validados por caminho, entradas, manifest, schema,
+  tamanho, hash, integridade SQLite, chaves estrangeiras, catálogo, hierarquia
+  e ciclos antes de qualquer escrita.
+- Importação e restauração criam backup verificado automaticamente e gravam em
+  transação. Restauração integral permanece separada da importação seletiva.
+- O ADR 015 registra a política por agregado e a justificativa para não mesclar
+  tarefas campo a campo. [import-export.md](import-export.md) contém formato,
+  segurança, política e roteiro de auditoria manual.
+- Dependências locais Rust adicionadas: Tauri Dialog 2.7.2, zip 8.6.0 sem
+  codecs, sha2 0.11.0, uuid 1.26.0 e chrono 0.4.45. Nenhuma ferramenta global
+  ou dependência npm foi adicionada.
+- Testes novos cobrem round-trip semântico em workspace vazio, substituição
+  seletiva, cópia com relações remapeadas, rejeição de entrada ZIP insegura,
+  restauração e seleção pela interface.
+- Gates aprovados: 80 testes TypeScript/React, 29 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check, Clippy, auditoria npm sem
+  vulnerabilidades, build Tauri de distribuição e release local de teste.
+- Commit: `não commitado`; nenhuma operação remota foi executada.
+- Resultado: Fase 6 concluída localmente e Checkpoint Git 7 preparado; a Fase 7
+  não foi iniciada.
 
 ## Regras permanentes de acompanhamento
 

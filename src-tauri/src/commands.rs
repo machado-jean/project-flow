@@ -1,4 +1,8 @@
-use tauri::State;
+use std::path::{Path, PathBuf};
+
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_log::log::warn;
 use tauri_plugin_sql::{DbInstances, DbPool};
 
 use crate::{
@@ -6,6 +10,10 @@ use crate::{
     persistence::{
         self, CalendarRecord, DuplicationBundleRecord, ProjectRecord, ScheduleChangeSetRecord,
         TaskRecord, TaskTemplateBundleRecord, WorkspaceData,
+    },
+    portability::{
+        self, BackupResult, ExportResult, ImportPackagePreview, ImportResult, ImportSelection,
+        RestoreResult,
     },
 };
 
@@ -152,4 +160,177 @@ pub async fn delete_template(
     persistence::delete_template(&pool, &template_id)
         .await
         .map_err(|error| format!("Não foi possível excluir o template: {error}"))
+}
+
+fn portability_staging_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_cache_dir()
+        .map(|path| path.join("portability"))
+        .map_err(|error| format!("Não foi possível resolver a pasta temporária: {error}"))
+}
+
+fn backup_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let app_config_dir = app
+        .path()
+        .app_config_dir()
+        .map_err(|error| format!("Não foi possível resolver a pasta do aplicativo: {error}"))?;
+    Ok(database::database_backup_dir(&app_config_dir))
+}
+
+fn file_path(path: tauri_plugin_dialog::FilePath) -> Result<PathBuf, String> {
+    path.into_path()
+        .map_err(|error| format!("O caminho selecionado não é um arquivo local válido: {error}"))
+}
+
+fn with_extension(path: PathBuf, extension: &str) -> PathBuf {
+    if path
+        .extension()
+        .is_some_and(|current| current.eq_ignore_ascii_case(extension))
+    {
+        path
+    } else {
+        path.with_extension(extension)
+    }
+}
+
+fn portability_error(context: &str, error: String) -> String {
+    warn!("ProjectFlow portability error during {context}: {error}");
+    error
+}
+
+#[tauri::command]
+pub async fn export_project(
+    app: AppHandle,
+    db_instances: State<'_, DbInstances>,
+    project_id: String,
+    suggested_name: String,
+) -> Result<Option<ExportResult>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Exportar projeto do ProjectFlow")
+        .set_file_name(format!("{suggested_name}.projectflow"))
+        .add_filter("Pacote ProjectFlow", &["projectflow"])
+        .blocking_save_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let destination = with_extension(file_path(selected)?, "projectflow");
+    let pool = sqlite_pool(&db_instances).await?;
+    portability::export_project(
+        &pool,
+        &project_id,
+        &destination,
+        &portability_staging_dir(&app)?,
+    )
+    .await
+    .map(Some)
+    .map_err(|error| portability_error("project export", error))
+}
+
+#[tauri::command]
+pub async fn export_workspace(
+    app: AppHandle,
+    db_instances: State<'_, DbInstances>,
+) -> Result<Option<ExportResult>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Exportar workspace do ProjectFlow")
+        .set_file_name(format!(
+            "projectflow-workspace-{}.projectflow",
+            chrono::Local::now().format("%Y%m%d")
+        ))
+        .add_filter("Pacote ProjectFlow", &["projectflow"])
+        .blocking_save_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let destination = with_extension(file_path(selected)?, "projectflow");
+    let pool = sqlite_pool(&db_instances).await?;
+    portability::export_workspace(&pool, &destination, &portability_staging_dir(&app)?)
+        .await
+        .map(Some)
+        .map_err(|error| portability_error("workspace export", error))
+}
+
+#[tauri::command]
+pub async fn choose_import_package(
+    app: AppHandle,
+    db_instances: State<'_, DbInstances>,
+) -> Result<Option<ImportPackagePreview>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Importar pacote do ProjectFlow")
+        .add_filter("Pacote ProjectFlow", &["projectflow"])
+        .blocking_pick_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let path = file_path(selected)?;
+    let pool = sqlite_pool(&db_instances).await?;
+    portability::inspect_package(&pool, &path, &portability_staging_dir(&app)?)
+        .await
+        .map(Some)
+        .map_err(|error| portability_error("package inspection", error))
+}
+
+#[tauri::command]
+pub async fn apply_import_package(
+    app: AppHandle,
+    db_instances: State<'_, DbInstances>,
+    package_path: String,
+    selection: ImportSelection,
+) -> Result<ImportResult, String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    portability::import_package(
+        &pool,
+        Path::new(&package_path),
+        &portability_staging_dir(&app)?,
+        &backup_dir(&app)?,
+        &selection,
+    )
+    .await
+    .map_err(|error| portability_error("package import", error))
+}
+
+#[tauri::command]
+pub async fn create_backup(
+    app: AppHandle,
+    db_instances: State<'_, DbInstances>,
+) -> Result<BackupResult, String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    portability::create_backup(&pool, &backup_dir(&app)?, "manual")
+        .await
+        .map_err(|error| portability_error("manual backup", error))
+}
+
+#[tauri::command]
+pub async fn choose_restore_backup(app: AppHandle) -> Result<Option<ImportPackagePreview>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Selecionar backup do ProjectFlow")
+        .add_filter("Backup SQLite do ProjectFlow", &["sqlite"])
+        .blocking_pick_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    portability::inspect_backup(&file_path(selected)?)
+        .await
+        .map(Some)
+        .map_err(|error| portability_error("backup inspection", error))
+}
+
+#[tauri::command]
+pub async fn restore_backup(
+    app: AppHandle,
+    db_instances: State<'_, DbInstances>,
+    backup_path: String,
+) -> Result<RestoreResult, String> {
+    let pool = sqlite_pool(&db_instances).await?;
+    portability::restore_backup(&pool, Path::new(&backup_path), &backup_dir(&app)?)
+        .await
+        .map_err(|error| portability_error("backup restore", error))
 }
