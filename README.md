@@ -4,8 +4,8 @@ ProjectFlow é uma aplicação desktop local-first para planejamento de projetos
 
 ## Estado atual
 
-As Fases 0 a 6 estão concluídas localmente e a Fase 6 está pronta para o
-Checkpoint Git 7. O recorte funcional atual contém:
+As Fases 0 a 6 estão concluídas e o Checkpoint Git 7 foi consolidado no commit
+`fc26a29`. O recorte funcional atual contém:
 
 - Tauri 2, React, TypeScript e Vite;
 - SQLite embarcado com migrations versionadas;
@@ -38,6 +38,8 @@ Checkpoint Git 7. O recorte funcional atual contém:
 - importação seletiva com atualização por UUID ou cópia independente;
 - seleção individual de templates e tratamento seguro de calendários;
 - backup SQLite verificado e restauração integral com backup de segurança;
+- seletor de destino para backup manual e acesso discreto à pasta dos backups
+  automáticos;
 - interface integralmente em português.
 
 A próxima etapa é a Fase 7, dedicada a hardening, acessibilidade, E2E e
@@ -168,3 +170,6 @@ docs/                arquitetura, ambiente e decisões
 ```
 
 `AGENTS.md` é a especificação principal do projeto.
+
+As atribuições e licenças das bibliotecas e bases de dados incorporadas ficam em
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

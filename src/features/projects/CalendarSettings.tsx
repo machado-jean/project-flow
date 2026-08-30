@@ -6,6 +6,12 @@ import {
   type CalendarException,
   type Weekday,
 } from "../../domain/calendars/calendar";
+import {
+  BRAZILIAN_STATES,
+  OFFICIAL_HOLIDAY_SOURCE,
+  officialHolidays,
+  type OfficialHoliday,
+} from "../../domain/calendars/official-holidays";
 
 const WEEKDAYS: readonly { readonly value: Weekday; readonly label: string }[] = [
   { value: 1, label: "Seg" },
@@ -20,15 +26,23 @@ const WEEKDAYS: readonly { readonly value: Weekday; readonly label: string }[] =
 interface CalendarSettingsProps {
   readonly calendar: Calendar;
   readonly disabled: boolean;
+  readonly usedYears: readonly number[];
   readonly onSave: (calendar: Calendar) => Promise<boolean>;
 }
 
-export function CalendarSettings({ calendar, disabled, onSave }: CalendarSettingsProps) {
+const HOLIDAY_KIND_LABEL = { public: "Feriado oficial", bank: "Feriado bancário", optional: "Ponto facultativo" } as const;
+
+export function CalendarSettings({ calendar, disabled, usedYears, onSave }: CalendarSettingsProps) {
   const [draft, setDraft] = useState(calendar);
   const [exceptionDate, setExceptionDate] = useState("");
   const [exceptionName, setExceptionName] = useState("");
   const [exceptionIsWorking, setExceptionIsWorking] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [stateCode, setStateCode] = useState<string>("");
+  const [holidayPreview, setHolidayPreview] = useState<readonly OfficialHoliday[]>([]);
+  const [selectedHolidayDates, setSelectedHolidayDates] = useState<ReadonlySet<string>>(new Set());
+  const [isLoadingHolidays, setIsLoadingHolidays] = useState(false);
+  const [holidayError, setHolidayError] = useState<string | null>(null);
   const isContinuous = calendar.id === CONTINUOUS_CALENDAR_ID;
 
   const toggleWeekday = (weekday: Weekday): void => {
@@ -66,13 +80,50 @@ export function CalendarSettings({ calendar, disabled, onSave }: CalendarSetting
     setDirty(true);
   };
 
+  const previewOfficialHolidays = async (): Promise<void> => {
+    setIsLoadingHolidays(true);
+    setHolidayError(null);
+    try {
+      const preview = await officialHolidays(usedYears, stateCode === "" ? null : stateCode);
+      setHolidayPreview(preview);
+      setSelectedHolidayDates(new Set(
+        preview.filter((holiday) => holiday.kind === "public" && !draft.exceptions.some((item) => item.date === holiday.date))
+          .map((holiday) => holiday.date),
+      ));
+    } catch {
+      setHolidayError("Não foi possível carregar o catálogo local de feriados.");
+    } finally {
+      setIsLoadingHolidays(false);
+    }
+  };
+
+  const addOfficialHolidays = (): void => {
+    const timestamp = new Date().toISOString();
+    const additions: CalendarException[] = holidayPreview
+      .filter((holiday) => selectedHolidayDates.has(holiday.date))
+      .map((holiday) => ({
+        id: crypto.randomUUID(), calendarId: draft.id, date: holiday.date,
+        isWorkingDay: false, name: holiday.name, createdAt: timestamp, updatedAt: timestamp,
+      }));
+    setDraft((current) => ({
+      ...current,
+      exceptions: [...current.exceptions, ...additions].sort((left, right) => left.date.localeCompare(right.date)),
+    }));
+    setHolidayPreview([]);
+    setSelectedHolidayDates(new Set());
+    if (additions.length > 0) setDirty(true);
+  };
+
   return (
-    <details className="calendar-settings">
+    <details className="workspace-menu calendar-settings" name="workspace-menu">
       <summary>
-        <span>Calendário: {calendar.name}</span>
-        <small>{calendar.workingDays.length} dias de trabalho por semana</small>
+        <span>Calendário</span>
       </summary>
-      <div className="calendar-settings-body">
+      <div className="workspace-menu-popover calendar-settings-body">
+        <div className="menu-panel-heading">
+          <strong>{calendar.name}</strong>
+          <small>{calendar.workingDays.length} dias de trabalho por semana</small>
+        </div>
         <p className="calendar-scope-note">
           Alterações neste calendário valem para todos os projetos e tarefas que o utilizam.
         </p>
@@ -133,6 +184,39 @@ export function CalendarSettings({ calendar, disabled, onSave }: CalendarSetting
                 <label className="working-exception-toggle"><input type="checkbox" checked={exceptionIsWorking} disabled={disabled} onChange={(event) => { setExceptionIsWorking(event.target.checked); }} />Liberar como dia útil</label>
                 <button className="secondary-button" type="submit" disabled={disabled}>Adicionar exceção</button>
               </form>
+              <div className="official-holiday-import">
+                <div>
+                  <h3>Importar feriados oficiais</h3>
+                  <p>Anos usados neste projeto: {usedYears.join(", ")}. Municipais continuam sendo cadastrados manualmente acima.</p>
+                </div>
+                <div className="official-holiday-actions">
+                  <label>UF<select value={stateCode} disabled={disabled} onChange={(event) => { setStateCode(event.target.value); setHolidayPreview([]); }}>
+                    <option value="">Somente nacionais</option>
+                    {BRAZILIAN_STATES.map((state) => <option key={state.code} value={state.code}>{state.name} ({state.code})</option>)}
+                  </select></label>
+                  <button className="secondary-button" type="button" disabled={disabled || isLoadingHolidays} onClick={() => { void previewOfficialHolidays(); }}>{isLoadingHolidays ? "Carregando…" : "Gerar prévia"}</button>
+                </div>
+                {holidayError === null ? null : <p role="alert">{holidayError}</p>}
+                {holidayPreview.length > 0 ? <>
+                  <ul className="official-holiday-preview">
+                    {holidayPreview.map((holiday) => {
+                      const collision = draft.exceptions.some((item) => item.date === holiday.date);
+                      return <li key={`${holiday.date}-${holiday.rule}`}>
+                        <label><input type="checkbox" disabled={disabled || collision} checked={selectedHolidayDates.has(holiday.date)} onChange={(event) => {
+                          setSelectedHolidayDates((current) => {
+                            const next = new Set(current);
+                            if (event.target.checked) next.add(holiday.date);
+                            else next.delete(holiday.date);
+                            return next;
+                          });
+                        }} /><span><strong>{holiday.date}</strong> · {holiday.name}<small>{HOLIDAY_KIND_LABEL[holiday.kind]}{collision ? " · já existe no calendário" : ""}</small></span></label>
+                      </li>;
+                    })}
+                  </ul>
+                  <button className="secondary-button" type="button" disabled={disabled || selectedHolidayDates.size === 0} onClick={addOfficialHolidays}>Adicionar selecionados ao calendário</button>
+                </> : null}
+                <details className="holiday-license"><summary>Fonte e licença dos dados</summary><p>{OFFICIAL_HOLIDAY_SOURCE}. Dados de feriados sob CC BY-SA 3.0; código da biblioteca sob ISC. A importação funciona offline.</p></details>
+              </div>
             </div>
 
             {dirty ? (

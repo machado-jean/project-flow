@@ -31,6 +31,7 @@ pub fn run() {
             commands::choose_import_package,
             commands::apply_import_package,
             commands::create_backup,
+            commands::open_backup_folder,
             commands::choose_restore_backup,
             commands::restore_backup
         ])

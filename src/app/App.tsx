@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { ProjectHeader } from "../features/projects/ProjectHeader";
+import { ProjectActionsMenu } from "../features/projects/ProjectActionsMenu";
 import { CalendarSettings } from "../features/projects/CalendarSettings";
 import { ProjectSidebar } from "../features/projects/ProjectSidebar";
 import { ProjectViews } from "../features/views/ProjectViews";
@@ -10,6 +11,8 @@ import { TauriWorkspaceRepository } from "../repositories/tauri-workspace-reposi
 import type { WorkspaceRepository } from "../repositories/workspace-repository";
 import { useWorkspace } from "../state/use-workspace";
 import "./App.css";
+import { scheduleYears } from "../domain/calendars/official-holidays";
+import { WorkspaceHelpMenu } from "../components/WorkspaceHelpMenu";
 
 interface AppProps {
   readonly repository?: WorkspaceRepository;
@@ -51,13 +54,6 @@ function App({ repository }: AppProps) {
           </div>
         ) : null}
 
-        <PortabilityPanel
-          repository={activeRepository}
-          selectedProject={workspace.selectedProject}
-          disabled={workspace.isLoading || workspace.isSaving}
-          onWorkspaceChanged={workspace.reloadWorkspace}
-        />
-
         {workspace.isLoading ? (
           <section className="center-state" aria-live="polite">
             <div className="loading-indicator" aria-hidden="true" />
@@ -65,40 +61,66 @@ function App({ repository }: AppProps) {
             <p>Os dados permanecem neste computador.</p>
           </section>
         ) : workspace.selectedProject === null ? (
-          <section className="center-state">
-            <span className="empty-illustration" aria-hidden="true">PF</span>
-            <h1>Organize seu primeiro projeto</h1>
-            <p>Use o botão “+” ao lado de Projetos para criar um espaço de planejamento.</p>
-          </section>
+          <>
+            <nav className="workspace-menu-bar" aria-label="Menu principal">
+              <PortabilityPanel
+                repository={activeRepository}
+                selectedProject={null}
+                disabled={workspace.isSaving}
+                onWorkspaceChanged={workspace.reloadWorkspace}
+              />
+              <WorkspaceHelpMenu />
+            </nav>
+            <section className="center-state">
+              <span className="empty-illustration" aria-hidden="true">PF</span>
+              <h1>Organize seu primeiro projeto</h1>
+              <p>Use o botão “+” ao lado de Projetos para criar um espaço de planejamento.</p>
+            </section>
+          </>
         ) : (
           <div className="project-workspace">
+            <nav className="workspace-menu-bar" aria-label="Menu principal">
+              <PortabilityPanel
+                repository={activeRepository}
+                selectedProject={workspace.selectedProject}
+                disabled={workspace.isSaving}
+                onWorkspaceChanged={workspace.reloadWorkspace}
+              />
+              <ProjectActionsMenu
+                project={workspace.selectedProject}
+                disabled={workspace.isSaving}
+                canMoveUp={selectedProjectIndex > 0}
+                canMoveDown={selectedProjectIndex >= 0 && selectedProjectIndex < projectPeers.length - 1}
+                onSave={workspace.saveProject}
+                onMove={workspace.moveProject}
+                onDelete={workspace.removeProject}
+                onDuplicate={workspace.duplicateProject}
+              />
+              {selectedCalendar !== undefined ? (
+                <CalendarSettings
+                  key={selectedCalendar.updatedAt}
+                  calendar={selectedCalendar}
+                  disabled={workspace.isSaving || workspace.selectedProject.isArchived}
+                  usedYears={scheduleYears(workspace.selectedProjectTasks)}
+                  onSave={workspace.saveCalendar}
+                />
+              ) : null}
+              <TemplateLibrary
+                templates={workspace.templates}
+                items={workspace.templateItems}
+                projectName={workspace.selectedProject.name}
+                disabled={workspace.isSaving || workspace.selectedProject.isArchived}
+                onApply={workspace.applyTemplate}
+                onDelete={workspace.removeTemplate}
+              />
+              <WorkspaceHelpMenu />
+            </nav>
             <ProjectHeader
               key={`${workspace.selectedProject.id}-${workspace.selectedProject.updatedAt}`}
               project={workspace.selectedProject}
               taskCount={workspace.selectedProjectTasks.length}
               disabled={workspace.isSaving}
-              canMoveUp={selectedProjectIndex > 0}
-              canMoveDown={selectedProjectIndex >= 0 && selectedProjectIndex < projectPeers.length - 1}
               onSave={workspace.saveProject}
-              onMove={workspace.moveProject}
-              onDelete={workspace.removeProject}
-              onDuplicate={workspace.duplicateProject}
-            />
-            {selectedCalendar !== undefined ? (
-              <CalendarSettings
-                key={selectedCalendar.updatedAt}
-                calendar={selectedCalendar}
-                disabled={workspace.isSaving || workspace.selectedProject.isArchived}
-                onSave={workspace.saveCalendar}
-              />
-            ) : null}
-            <TemplateLibrary
-              templates={workspace.templates}
-              items={workspace.templateItems}
-              projectName={workspace.selectedProject.name}
-              disabled={workspace.isSaving || workspace.selectedProject.isArchived}
-              onApply={workspace.applyTemplate}
-              onDelete={workspace.removeTemplate}
             />
             <ProjectViews
               tasks={workspace.selectedProjectTasks}

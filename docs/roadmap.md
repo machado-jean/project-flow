@@ -31,13 +31,13 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 
 | Item | Estado |
 | --- | --- |
-| Etapa do produto | Portabilidade concluída; Checkpoint Git 7 preparado |
-| Fase ativa | Nenhuma; Fase 6 pronta para auditoria e commit do usuário |
+| Etapa do produto | Portabilidade concluída; Checkpoint Git 7 consolidado |
+| Fase ativa | Nenhuma; refinamento de backup manual pronto para commit |
 | Próxima fase | Fase 7 — Hardening e distribuição, somente após aceite explícito |
 | Versão da aplicação | `0.1.0` |
 | Versão do schema SQLite | `4` |
-| Último commit estável | `5480df7` — `docs: document LF normalization for Windows migrations` |
-| Branch de trabalho | `main`, com o Checkpoint Git 7 ainda não commitado |
+| Último commit estável | `fc26a29` — `feat: implement project portability and local backups` |
+| Branch de trabalho | `main`, com refinamento de UX de backup ainda não commitado |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -232,7 +232,7 @@ Critério de saída: Checkpoint E concluído e critérios de aceite do MVP verif
 | 4 — Scheduler FS | Concluído | `6f02673` |
 | 5 — Tabela/Kanban/Gantt | Concluído | `36b2096` |
 | 6 — Duplicação/templates | Concluído | `2a6faef` — reutilização consolidada |
-| 7 — Export/import/backup | Pronto para commit | entrega local implementada e validada |
+| 7 — Export/import/backup | Concluído | `fc26a29` — portabilidade e backups consolidados |
 | 8 — Empacotamento Windows | Planejado | — |
 
 Os Checkpoints 1 e 2 foram consolidados no mesmo commit porque a primeira entrega validada incluiu scaffold, qualidade, SQLite e migrations. Futuros checkpoints podem conter vários commits pequenos e coerentes.
@@ -594,6 +594,9 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - A barra **Dados** permite exportar projeto ou workspace, criar backup,
   inspecionar/importar pacote e restaurar um backup completo usando seletores
   nativos do Windows.
+- O backup manual permite escolher pasta e nome pelo seletor do Windows;
+  backups automáticos continuam no diretório interno e um acesso discreto em
+  **Mais opções** abre essa pasta no Explorador de Arquivos.
 - A prévia permite escolher projetos e templates. Projeto com UUID conhecido é
   atualizado integralmente por padrão; **Importar como cópia** remapeia projeto,
   tarefas, pais e dependências internas.
@@ -620,6 +623,59 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Commit: `não commitado`; nenhuma operação remota foi executada.
 - Resultado: Fase 6 concluída localmente e Checkpoint Git 7 preparado; a Fase 7
   não foi iniciada.
+
+### 29 de agosto de 2026 — Destino do backup manual e acesso aos automáticos
+
+- O Checkpoint Git 7 foi consolidado no commit `fc26a29`.
+- **Criar backup** passou a abrir o seletor nativo para escolha de pasta e nome.
+- O snapshot é criado e validado em arquivo temporário antes de substituir um
+  destino previamente confirmado, preservando backups existentes em caso de
+  falha durante a geração.
+- Backups automáticos de importação e restauração continuam no diretório
+  interno. **Dados → Mais opções** oferece acesso discreto a essa pasta no
+  Explorador de Arquivos.
+- Gates aprovados novamente: 80 testes TypeScript/React, 29 testes Rust/SQLite,
+  lint, typecheck, Cargo check, Clippy e release local de teste.
+- Commit: `não commitado`; nenhuma operação remota foi executada.
+- Resultado: refinamento pronto para commit, sem iniciar a Fase 7.
+
+### 29 de agosto de 2026 — Catálogo offline de feriados brasileiros
+
+- O calendário passou a gerar uma prévia de feriados nacionais, estaduais e
+  móveis somente para os anos utilizados pelas tarefas do projeto.
+- A UF é opcional; feriados municipais permanecem sob controle manual do usuário.
+- Feriados oficiais são pré-selecionados. Feriados bancários e pontos
+  facultativos são exibidos com sua classificação e exigem seleção consciente.
+- Exceções já cadastradas nunca são sobrescritas pela importação.
+- `date-holidays` 3.36.0 foi adicionada localmente e carregada sob demanda; o
+  código é ISC e os dados são CC BY-SA 3.0, com atribuição em
+  `THIRD_PARTY_NOTICES.md`.
+- Nenhuma migration foi necessária: as datas escolhidas usam a entidade de
+  exceção existente, preservando compatibilidade com backups do schema 4.
+- Gates aprovados: 84 testes TypeScript/React, 29 testes Rust/SQLite, lint,
+  typecheck, build web, Cargo fmt/check/test/Clippy e auditoria npm sem
+  vulnerabilidades conhecidas.
+- Commit: `não commitado`; nenhuma operação remota foi executada.
+
+### 30 de agosto de 2026 — Barra de menus compacta
+
+- Dados, ações do projeto, calendário, templates e ajuda foram reunidos em uma
+  barra superior logo abaixo da barra nativa da janela e acima do título do
+  projeto, seguindo a convenção de aplicativos desktop.
+- Os painéis abrem como menus flutuantes e deixam de reservar altura quando
+  fechados. Calendário e templates usam a largura útil do workspace para não
+  escapar da janela em resoluções menores.
+- O cabeçalho do projeto mantém somente nome, descrição, status e salvamento;
+  ordenar, duplicar, arquivar e excluir passaram para o menu **Projeto**.
+- Apenas um menu principal permanece aberto por vez usando o agrupamento nativo
+  de `details`, com foco visível e operação por teclado.
+- Atualizações após importação e restauração não desmontam mais a interface nem
+  apagam a mensagem de resultado.
+- Nenhuma dependência ou migration foi adicionada.
+- Gates aprovados: 84 testes TypeScript/React, lint, typecheck e build web. O
+  release local de teste foi recompilado e a barra, o calendário e os templates
+  foram conferidos na janela Tauri real.
+- Commit: `não commitado`; nenhuma operação remota foi executada.
 
 ## Regras permanentes de acompanhamento
 

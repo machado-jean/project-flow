@@ -349,8 +349,12 @@ class MemoryWorkspaceRepository implements WorkspaceRepository {
     });
   }
 
-  createBackup(): Promise<BackupResult> {
+  createBackup(): Promise<BackupResult | null> {
     return Promise.resolve({ path: "C:\\backups\\manual.sqlite" });
+  }
+
+  openBackupFolder(): Promise<void> {
+    return Promise.resolve();
   }
 
   chooseRestoreBackup(): Promise<ImportPackagePreview | null> {
@@ -381,6 +385,7 @@ describe("aplicação ProjectFlow", () => {
     render(<App repository={repository} />);
     await screen.findByRole("heading", { name: "Tabela de tarefas" });
 
+    fireEvent.click(screen.getByText("Arquivo"));
     fireEvent.click(screen.getByRole("button", { name: "Importar pacote" }));
     const dialog = await screen.findByRole("dialog", { name: "Escolher conteúdo para importar" });
     fireEvent.change(within(dialog).getByLabelText("Ação para Projeto existente"), { target: { value: "IGNORE" } });
@@ -399,6 +404,7 @@ describe("aplicação ProjectFlow", () => {
   it("cria backup manual e informa onde ele foi salvo", async () => {
     render(<App repository={new MemoryWorkspaceRepository()} />);
     await screen.findByRole("heading", { name: "Organize seu primeiro projeto" });
+    fireEvent.click(screen.getByText("Arquivo"));
     fireEvent.click(screen.getByRole("button", { name: "Criar backup" }));
     expect(await screen.findByText(/Backup verificado criado em C:\\backups\\manual.sqlite/)).toBeVisible();
   });
@@ -709,7 +715,7 @@ describe("aplicação ProjectFlow", () => {
     });
     render(<App repository={repository} />);
 
-    fireEvent.click(await screen.findByText("Calendário: Calendário padrão"));
+    fireEvent.click(await screen.findByText("Calendário"));
     fireEvent.change(screen.getByLabelText("Data"), {
       target: { value: "2026-08-31" },
     });
@@ -741,7 +747,7 @@ describe("aplicação ProjectFlow", () => {
 
     expect(await screen.findByDisplayValue("Marco manual")).toBeVisible();
     expect(screen.queryByText("1 conflito de agendamento")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Calendário: Calendário padrão"));
+    fireEvent.click(screen.getByText("Calendário"));
     fireEvent.change(screen.getByLabelText("Data"), { target: { value: "2026-09-07" } });
     fireEvent.click(screen.getByRole("button", { name: "Adicionar exceção" }));
     fireEvent.click(screen.getByRole("button", { name: "Salvar calendário" }));
@@ -968,7 +974,8 @@ describe("aplicação ProjectFlow", () => {
     });
     render(<App repository={repository} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Duplicar projeto" }));
+    fireEvent.click(await screen.findByText("Projeto"));
+    fireEvent.click(screen.getByRole("button", { name: "Duplicar projeto" }));
 
     await waitFor(() => {
       expect(repository.projects).toHaveLength(2);

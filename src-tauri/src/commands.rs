@@ -299,11 +299,38 @@ pub async fn apply_import_package(
 pub async fn create_backup(
     app: AppHandle,
     db_instances: State<'_, DbInstances>,
-) -> Result<BackupResult, String> {
+) -> Result<Option<BackupResult>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Salvar backup do ProjectFlow")
+        .set_file_name(format!(
+            "projectflow-backup-{}.sqlite",
+            chrono::Local::now().format("%Y%m%d-%H%M")
+        ))
+        .add_filter("Backup SQLite do ProjectFlow", &["sqlite"])
+        .blocking_save_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let destination = with_extension(file_path(selected)?, "sqlite");
     let pool = sqlite_pool(&db_instances).await?;
-    portability::create_backup(&pool, &backup_dir(&app)?, "manual")
+    portability::create_backup_at(&pool, &destination)
         .await
+        .map(Some)
         .map_err(|error| portability_error("manual backup", error))
+}
+
+#[tauri::command]
+pub fn open_backup_folder(app: AppHandle) -> Result<(), String> {
+    let path = backup_dir(&app)?;
+    std::fs::create_dir_all(&path)
+        .map_err(|error| format!("Não foi possível preparar a pasta de backups: {error}"))?;
+    std::process::Command::new("explorer.exe")
+        .arg(&path)
+        .spawn()
+        .map_err(|error| format!("Não foi possível abrir a pasta de backups: {error}"))?;
+    Ok(())
 }
 
 #[tauri::command]

@@ -54,11 +54,19 @@ Antes de qualquer importação com escrita, um snapshot verificado é criado na 
 
 ## Backup e restauração
 
-**Criar backup** gera um `.sqlite` consistente por `VACUUM INTO` e executa `quick_check`, verificação de chaves estrangeiras e versão do schema antes de informar sucesso.
+**Criar backup** abre o seletor nativo do Windows para o usuário escolher pasta
+e nome. O arquivo `.sqlite` é montado em um destino temporário, validado por
+`quick_check`, chaves estrangeiras e versão do schema e só então publicado no
+caminho escolhido.
 
 **Restaurar backup** é separado da importação seletiva. Após validar o arquivo e mostrar seu conteúdo, substitui o workspace completo em uma transação. Imediatamente antes, cria outro backup de segurança.
 
 Durante desenvolvimento os backups ficam em `.local/backups/`. Na distribuição ficam em `backups/` dentro do diretório de configuração do aplicativo.
+
+Essa pasta interna é usada somente pelos backups automáticos de segurança. Para
+facilitar o suporte sem expor uma ação técnica na barra principal, **Dados →
+Mais opções → Abrir pasta de backups automáticos** abre o local correto no
+Explorador de Arquivos.
 
 ## Segurança e integridade
 

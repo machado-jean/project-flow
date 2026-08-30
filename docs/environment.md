@@ -53,6 +53,7 @@ VBSCRIPT é necessário somente para gerar MSI. Não foi habilitado nem alterado
 | SQLite runtime | 3.46.0 | domínio público | persistência embarcada |
 | Tauri Log plugin | 2.9.0 | MIT/Apache-2.0 | logs locais |
 | SVAR React Gantt | 2.7.1 | MIT | renderer local do Gantt, carregado sob demanda |
+| date-holidays | 3.36.0 | ISC (código) / CC BY-SA 3.0 (dados) | catálogo offline de feriados brasileiros, carregado sob demanda |
 | Tauri Dialog plugin | 2.7.2 | MIT/Apache-2.0 | seletores nativos de exportação/importação |
 | zip (crate) | 8.6.0 | MIT | leitura e escrita estrita de `.projectflow` |
 | sha2 (crate) | 0.11.0 | MIT/Apache-2.0 | integridade SHA-256 dos pacotes |
@@ -182,3 +183,9 @@ aprovados. Passaram 80 testes TypeScript/React e 29 testes Rust/SQLite; seis dos
 testes nativos cobrem especificamente portabilidade, integridade, rollback e
 restauração. O release de teste foi gerado por último e o log confirmou schema
 4 usando `.local/data/projectflow.sqlite`.
+
+Depois da Fase 6, `date-holidays` 3.36.0 foi adicionada somente ao projeto, sem
+instalação global. O chunk do catálogo é carregado quando a prévia de feriados é
+solicitada; atribuição e licença estão em `THIRD_PARTY_NOTICES.md`. Foram
+aprovados 84 testes TypeScript/React, 29 testes Rust/SQLite, lint, typecheck,
+build web, Cargo fmt/check/test/Clippy e auditoria npm sem vulnerabilidades.

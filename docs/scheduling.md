@@ -190,3 +190,17 @@ nenhum dos sentidos; quando sua data viola a relação, deve apenas exibir o avi
 - caminho crítico e nivelamento de recursos continuam fora do Gantt da Fase 4;
 - drag/resize direto nas barras permanece desabilitado: edições temporais usam
   o painel do ProjectFlow para respeitar este scheduler.
+
+## Importação de feriados oficiais
+
+O editor de calendário oferece uma prévia offline de feriados brasileiros para
+os anos que aparecem nas datas do projeto. É possível escolher somente o âmbito
+nacional ou uma UF. Feriados classificados como `public` vêm selecionados;
+feriados bancários e pontos facultativos ficam disponíveis, mas exigem seleção
+explícita. Datas que já possuem uma exceção são bloqueadas na prévia e nunca são
+sobrescritas.
+
+Feriados municipais continuam sendo exceções manuais, pois dependem do município
+do usuário e não têm cobertura nacional uniforme na fonte adotada. A integração
+usa `date-holidays` 3.36.0 sob demanda, sem acesso à internet. Código e dados
+possuem as atribuições registradas em `THIRD_PARTY_NOTICES.md`.

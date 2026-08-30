@@ -479,11 +479,37 @@ pub async fn create_backup(
         &Uuid::new_v4().to_string()[..8]
     );
     let path = backup_dir.join(filename);
-    vacuum_into(pool, &path).await?;
-    load_validated_database(&path).await?;
+    create_backup_at(pool, &path).await
+}
+
+pub async fn create_backup_at(
+    pool: &SqlitePool,
+    destination: &Path,
+) -> PortabilityResult<BackupResult> {
+    let parent = destination
+        .parent()
+        .ok_or_else(|| "O destino do backup não possui uma pasta válida.".to_owned())?;
+    fs::create_dir_all(parent)
+        .map_err(|error| format!("Falha ao criar a pasta de backups: {error}"))?;
+    let temporary = parent.join(format!("projectflow-backup-{}.tmp", Uuid::new_v4()));
+    vacuum_into(pool, &temporary).await?;
+    if let Err(error) = load_validated_database(&temporary).await {
+        let _ = fs::remove_file(&temporary);
+        return Err(error);
+    }
+    if destination.exists() {
+        fs::remove_file(destination).map_err(|error| {
+            let _ = fs::remove_file(&temporary);
+            format!("Falha ao substituir o backup confirmado pelo usuário: {error}")
+        })?;
+    }
+    fs::rename(&temporary, destination).map_err(|error| {
+        let _ = fs::remove_file(&temporary);
+        format!("Falha ao publicar o backup verificado: {error}")
+    })?;
     info!("Verified ProjectFlow backup created");
     Ok(BackupResult {
-        path: path.to_string_lossy().into_owned(),
+        path: destination.to_string_lossy().into_owned(),
     })
 }
 

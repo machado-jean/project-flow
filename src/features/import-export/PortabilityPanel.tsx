@@ -109,9 +109,11 @@ export function PortabilityPanel({
   };
 
   return (
-    <section className="portability-bar" aria-label="Portabilidade e backup">
-      <div className="portability-actions">
-        <strong>Dados</strong>
+    <>
+      <details className="workspace-menu portability-menu" name="workspace-menu">
+        <summary>Arquivo</summary>
+        <div className="workspace-menu-popover portability-menu-popover">
+          <div className="portability-actions" aria-label="Portabilidade e backup">
         {selectedProject !== null ? (
           <button
             type="button"
@@ -150,7 +152,7 @@ export function PortabilityPanel({
           onClick={() => {
             void run(async () => {
               const result = await repository.createBackup();
-              setMessage(`Backup verificado criado em ${result.path}`);
+              if (result !== null) setMessage(`Backup verificado criado em ${result.path}`);
             });
           }}
         >
@@ -159,7 +161,23 @@ export function PortabilityPanel({
         <button type="button" disabled={disabled || busy} onClick={chooseRestore}>
           Restaurar backup
         </button>
-      </div>
+        <details className="portability-more">
+          <summary>Mais opções</summary>
+          <button
+            type="button"
+            disabled={disabled || busy}
+            onClick={() => {
+              void run(async () => {
+                await repository.openBackupFolder();
+              });
+            }}
+          >
+            Abrir pasta de backups automáticos
+          </button>
+        </details>
+          </div>
+        </div>
+      </details>
       {busy ? <span className="portability-status" role="status">Processando dados locais…</span> : null}
       {message !== null ? <p className="portability-message" role="status">{message}</p> : null}
       {error !== null ? <p className="portability-error" role="alert">{error}</p> : null}
@@ -247,6 +265,6 @@ export function PortabilityPanel({
           </section>
         </div>
       ) : null}
-    </section>
+    </>
   );
 }

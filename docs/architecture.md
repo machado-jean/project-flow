@@ -98,6 +98,16 @@ pois cada aplicação gera entidades independentes.
 
 A Fase 6 acrescenta `src-tauri/src/portability.rs`. Exportação, inspeção de pacote, importação seletiva, backup e restauração ficam na camada nativa porque dependem de filesystem, ZIP, hash e snapshots SQLite. A UI recebe somente catálogos já validados e escolhas explícitas; não interpreta o arquivo nem decide como UUIDs, relações ou calendários são reconciliados. Importação e restauração reutilizam helpers transacionais da persistência, mantendo constraints e tags normalizadas.
 
+O catálogo oficial de feriados permanece no domínio TypeScript e é carregado
+sob demanda. Ele somente propõe exceções; a fonte de verdade continua sendo o
+SQLite. A decisão e a política de licenças estão no ADR 016.
+
+A navegação secundária do workspace usa uma barra compacta logo abaixo da barra
+nativa da janela e acima do cabeçalho do projeto.
+Arquivo, ações do projeto, calendário, templates e ajuda abrem painéis
+transitórios; esses painéis não criam estado persistente novo e continuam
+chamando os mesmos casos de uso e repositories das interfaces anteriores.
+
 ## Fluxo do scheduler
 
 ```text

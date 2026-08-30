@@ -145,8 +145,12 @@ export class TauriWorkspaceRepository implements WorkspaceRepository {
     return invoke("apply_import_package", { packagePath, selection });
   }
 
-  createBackup(): Promise<BackupResult> {
+  createBackup(): Promise<BackupResult | null> {
     return invoke("create_backup");
+  }
+
+  openBackupFolder(): Promise<void> {
+    return invoke("open_backup_folder");
   }
 
   chooseRestoreBackup(): Promise<ImportPackagePreview | null> {

@@ -38,13 +38,12 @@ export function TemplateLibrary({
   };
 
   return (
-    <details className="template-library">
+    <details className="workspace-menu template-library" name="workspace-menu">
       <summary>
         <span>Templates</span>
         <span className="template-count">{templates.length}</span>
-        <span className="template-summary-help">Biblioteca reutilizável do workspace</span>
       </summary>
-      <div className="template-library-content">
+      <div className="workspace-menu-popover template-library-content">
         <div className="template-library-heading">
           <div>
             <h2>Aplicar estrutura</h2>

@@ -94,6 +94,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .calendar-exceptions ul { display: grid; gap: 5px; padding: 0; margin: 0; list-style: none; }
 .calendar-exceptions li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 9px; background: #f7f9fb; border-radius: 6px; font-size: 10px; }
 .calendar-exceptions li button { color: #a63b32; background: transparent; border: 0; font-size: 10px; }
+.official-holiday-import { display: grid; gap: 9px; padding: 11px; border: 1px solid #dfe7ef; border-radius: 7px; background: #fbfcfd; }
+.official-holiday-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.official-holiday-actions label { display: grid; gap: 4px; min-width: 220px; color: #536174; font-size: 10px; }
+.official-holiday-actions select { min-height: 32px; border: 1px solid #cfd8e3; border-radius: 5px; background: #fff; color: #263445; }
+.calendar-exceptions .official-holiday-preview { max-height: 240px; overflow: auto; padding-right: 4px; }
+.official-holiday-preview label { display: flex; align-items: flex-start; gap: 8px; width: 100%; cursor: pointer; }
+.official-holiday-preview span { display: grid; gap: 2px; }
+.official-holiday-preview small { color: #778596; font-size: 9px; }
+.holiday-license summary { cursor: pointer; color: #59697b; font-size: 10px; }
+.holiday-license p { line-height: 1.5; }
 .calendar-exception-form { display: grid; grid-template-columns: 145px minmax(180px, 1fr) auto auto; align-items: end; gap: 8px; }
 .calendar-exception-form label { display: grid; gap: 4px; color: #667382; font-size: 9px; font-weight: 650; }
 .calendar-exception-form input { min-height: 32px; padding: 6px 8px; background: #fff; border: 1px solid #cfd7e1; border-radius: 6px; font-size: 11px; }
@@ -215,6 +225,41 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .empty-table span { margin-top: 5px; color: #8a96a5; font-size: 11px; }
 
 .project-views { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.workspace-menu-bar { position: relative; z-index: 30; display: flex; min-height: 36px; align-items: stretch; gap: 2px; padding: 0 22px; background: #fff; border-bottom: 1px solid #dfe4ea; }
+.workspace-menu { position: relative; margin: 0; background: transparent; border: 0; border-radius: 0; }
+.workspace-menu > summary { display: flex; height: 35px; align-items: center; gap: 6px; padding: 0 10px; color: #46566a; border-radius: 5px; cursor: pointer; font-size: 11px; font-weight: 620; list-style: none; user-select: none; }
+.workspace-menu > summary::-webkit-details-marker { display: none; }
+.workspace-menu > summary:hover, .workspace-menu[open] > summary { color: #174ea6; background: #edf3fb; }
+.workspace-menu > summary:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+.workspace-menu[open] { z-index: 40; }
+.workspace-menu-popover { position: absolute; z-index: 40; top: calc(100% + 5px); left: 0; max-height: min(72vh, 680px); overflow: auto; background: #fff; border: 1px solid #cfd8e3; border-radius: 9px; box-shadow: 0 12px 34px rgb(15 23 42 / 20%); }
+.workspace-menu .menu-panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding-bottom: 8px; border-bottom: 1px solid #e7ecf1; }
+.workspace-menu .menu-panel-heading strong { color: #2d3d50; font-size: 13px; }
+.workspace-menu .menu-panel-heading small { color: #8190a1; font-size: 9px; }
+.workspace-menu.calendar-settings > summary, .workspace-menu.template-library > summary { padding: 0 10px; }
+.workspace-menu .calendar-settings-body { width: min(760px, calc(100vw - 290px)); padding: 14px; border-top: 0; }
+.workspace-menu .template-library-content { width: min(720px, calc(100vw - 290px)); padding: 14px; border-top: 0; }
+.workspace-menu.calendar-settings, .workspace-menu.template-library { position: static; }
+.workspace-menu.calendar-settings > .workspace-menu-popover, .workspace-menu.template-library > .workspace-menu-popover { top: calc(100% + 5px); left: 22px; }
+.portability-menu-popover { display: grid; width: 250px; gap: 8px; padding: 7px; }
+.portability-menu .portability-actions { display: grid; gap: 2px; }
+.portability-menu .portability-actions > button, .portability-menu .portability-more > summary { width: 100%; min-height: 31px; padding: 7px 9px; text-align: left; color: #40546b; background: transparent; border: 0; border-radius: 5px; font-size: 10px; font-weight: 620; }
+.portability-menu .portability-actions > button:hover:not(:disabled), .portability-menu .portability-more > summary:hover { color: #174ea6; background: #edf3fb; }
+.portability-menu .portability-more { padding-top: 4px; border-top: 1px solid #e5eaf0; }
+.portability-menu .portability-more[open] > button { position: static; width: 100%; margin-top: 2px; box-shadow: none; }
+.portability-menu .portability-message, .portability-menu .portability-error { max-width: none; margin: 0; padding: 7px; white-space: normal; line-height: 1.4; }
+.workspace-menu-bar > .portability-status, .workspace-menu-bar > .portability-message, .workspace-menu-bar > .portability-error { position: absolute; top: 50%; right: 18px; max-width: 44%; margin: 0; transform: translateY(-50%); }
+.project-actions-popover { display: grid; width: 210px; gap: 2px; padding: 7px; }
+.project-actions-popover button { min-height: 31px; padding: 7px 9px; text-align: left; color: #40546b; background: transparent; border: 0; border-radius: 5px; font-size: 10px; font-weight: 620; }
+.project-actions-popover button:hover:not(:disabled) { color: #174ea6; background: #edf3fb; }
+.project-actions-popover button.danger-menu-item { color: #a72f27; }
+.project-actions-popover button.danger-menu-item:hover:not(:disabled) { color: #8f211a; background: #fff0ee; }
+.project-actions-popover hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid #e5eaf0; }
+.help-menu-popover { display: grid; width: 310px; gap: 7px; padding: 13px 14px; }
+.help-menu-popover strong { color: #304156; font-size: 11px; }
+.help-menu-popover p { margin: 0; color: #647387; font-size: 10px; line-height: 1.45; }
+.help-menu-popover hr { width: 100%; margin: 3px 0; border: 0; border-top: 1px solid #e5eaf0; }
+.help-menu-popover small { color: #8290a0; font-size: 9px; }
 .view-command-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 26px 0; }
 .view-tabs { display: inline-flex; padding: 3px; background: #e8edf3; border-radius: 8px; }
 .view-tabs button { min-width: 88px; padding: 7px 13px; color: #637082; background: transparent; border: 0; border-radius: 6px; font-size: 11px; font-weight: 700; }
@@ -334,6 +379,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .portability-actions strong { margin-right: 4px; color: #526174; font-size: 10px; text-transform: uppercase; }
 .portability-actions button { min-height: 28px; padding: 4px 8px; color: #496079; background: #fff; border: 1px solid #d2dae4; border-radius: 5px; font-size: 9px; font-weight: 680; }
 .portability-actions button:hover:not(:disabled) { color: #174ea6; border-color: #91afe0; }
+.portability-more { position: relative; color: #718096; font-size: 9px; }
+.portability-more summary { padding: 5px 7px; cursor: pointer; user-select: none; }
+.portability-more[open] > button { position: absolute; z-index: 15; top: calc(100% + 5px); right: 0; width: 210px; padding: 8px 10px; text-align: left; box-shadow: 0 8px 22px rgb(15 23 42 / 15%); }
 .portability-status, .portability-message, .portability-error { overflow: hidden; margin: 0 0 0 auto; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .portability-status, .portability-message { color: #607187; }
 .portability-message { max-width: 40%; }

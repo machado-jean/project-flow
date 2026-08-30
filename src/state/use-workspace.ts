@@ -1109,7 +1109,6 @@ export function useWorkspace(repository: WorkspaceRepository): WorkspaceControll
     selectProject: setSelectedProjectId,
     clearError: () => { setError(null); },
     reloadWorkspace: () => {
-      setIsLoading(true);
       setReloadVersion((current) => current + 1);
     },
     createProject,

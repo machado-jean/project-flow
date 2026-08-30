@@ -109,7 +109,8 @@ export interface WorkspaceRepository {
   exportWorkspace(): Promise<ExportResult | null>;
   chooseImportPackage(): Promise<ImportPackagePreview | null>;
   applyImportPackage(packagePath: string, selection: ImportSelection): Promise<ImportResult>;
-  createBackup(): Promise<BackupResult>;
+  createBackup(): Promise<BackupResult | null>;
+  openBackupFolder(): Promise<void>;
   chooseRestoreBackup(): Promise<ImportPackagePreview | null>;
   restoreBackup(backupPath: string): Promise<RestoreResult>;
 }
