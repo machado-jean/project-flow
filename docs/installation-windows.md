@@ -48,6 +48,18 @@ de administrador no fluxo normal.
 
 ## Atualização e preservação de dados
 
+Use **Ajuda > Verificar atualizações**. A consulta ocorre somente nesse momento
+e compara a versão instalada com a última release estável publicada. Quando
+houver uma versão superior, **Baixar atualização** abre o instalador padrão no
+navegador; a alternativa offline também está disponível.
+
+O ProjectFlow não baixa nem executa o instalador internamente. Depois do
+download, feche o aplicativo e execute manualmente o arquivo obtido.
+
+A `v0.1.0` é anterior ao verificador. A `v0.1.1` será a primeira versão com
+essa opção; para comprovar o ciclo completo, instale a `v0.1.1` e publique
+depois uma versão superior, como `v0.1.2`, mantendo os mesmos nomes dos assets.
+
 Feche o aplicativo e execute o instalador de versão mais recente. O instalador
 atualiza os binários; o banco, backups e logs permanecem no perfil do usuário e
 não são armazenados junto ao executável. Downgrade é bloqueado por segurança.
@@ -79,6 +91,8 @@ revise manualmente o diretório acima depois de desinstalar.
 - repetir em uma máquina sem internet com o pacote offline;
 - confirmar abertura, persistência, backup/restauração e ausência de chamadas
   remotas necessárias à interface principal;
+- confirmar que nenhuma consulta ao GitHub ocorre ao iniciar e que a ação
+  manual informa versão atual ou atualização disponível;
 - registrar versão do Windows e do WebView2, tamanho dos pacotes e evidências.
 
 Essa prova em máquina limpa não pode ser substituída por teste no computador de

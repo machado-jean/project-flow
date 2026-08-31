@@ -36,6 +36,7 @@ pub fn run() {
             commands::restore_backup
         ])
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .plugin(migration_compatibility::init())
         .plugin(
             tauri_plugin_log::Builder::new()

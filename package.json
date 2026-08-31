@@ -1,7 +1,7 @@
 {
   "name": "project-flow",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first desktop project planning for Windows.",
   "type": "module",
   "packageManager": "npm@11.19.0",
@@ -30,6 +30,7 @@
     "@svar-ui/react-gantt": "2.7.1",
     "@tauri-apps/api": "2.11.1",
     "@tauri-apps/plugin-log": "2.9.0",
+    "@tauri-apps/plugin-opener": "2.5.4",
     "@tauri-apps/plugin-sql": "2.4.0",
     "date-holidays": "3.36.0",
     "react": "19.2.8",

@@ -14,3 +14,13 @@ feriados nacionais e estaduais do Brasil.
 O ProjectFlow seleciona o país Brasil, opcionalmente uma unidade federativa, filtra
 os tipos exibidos e converte as datas escolhidas em exceções locais de calendário.
 Feriados municipais não são fornecidos automaticamente.
+
+## Tauri Opener 2.5.4
+
+O ProjectFlow usa `@tauri-apps/plugin-opener` e `tauri-plugin-opener` somente
+para abrir, no navegador padrão, os dois instaladores publicados pelo próprio
+projeto. A capability nativa restringe os endereços permitidos.
+
+- licença: MIT ou Apache-2.0;
+- projeto: <https://github.com/tauri-apps/plugins-workspace/tree/v2/plugins/opener>;
+- documentação: <https://v2.tauri.app/plugin/opener/>.

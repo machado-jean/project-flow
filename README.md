@@ -41,6 +41,8 @@ As Fases 0 a 6 estão concluídas e o Checkpoint Git 7 foi consolidado no commit
 - seletor de destino para backup manual e acesso discreto à pasta dos backups
   automáticos;
 - interface integralmente em português.
+- verificação manual de nova versão pelo GitHub, sem consulta na inicialização,
+  com download aberto no navegador padrão.
 
 A Fase 7 está em andamento. O primeiro incremento adicionou orçamentos de
 desempenho, navegação das views por teclado e instaladores NSIS padrão e
@@ -169,7 +171,8 @@ Para validar futuramente o comportamento de distribuição sem gerar instaladore
 npm run tauri:build -- --no-bundle
 ```
 
-MSI/NSIS e instalação offline serão decididos apenas na fase de distribuição.
+NSIS padrão e offline são as estratégias de distribuição definidas no ADR 017.
+Atualizações são verificadas manualmente conforme o ADR 018.
 
 ## Estrutura
 

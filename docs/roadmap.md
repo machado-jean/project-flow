@@ -34,10 +34,10 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | Etapa do produto | Hardening e distribuição Windows em andamento |
 | Fase ativa | Fase 7 — primeiro checkpoint técnico validado localmente |
 | Próxima fase | Concluir E2E e validar instalação/atualização offline em máquina limpa |
-| Versão da aplicação | `0.1.0` |
+| Versão da aplicação | `0.1.1` |
 | Versão do schema SQLite | `4` |
-| Último commit estável | `631db54` — `Add holiday catalog and refine backup navigation UX` |
-| Branch de trabalho | `main`, com Fase 7 e refinamentos anteriores ainda não commitados |
+| Último commit estável | `8de34a6` — `Advance Windows hardening and installer distribution` |
+| Branch de trabalho | `main`, com verificação manual de atualização ainda não commitada |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -211,6 +211,7 @@ Estado: **Em andamento**.
 - [x] Medir 1.000 tarefas por projeto e 10.000 por workspace.
 - [x] Avaliar virtualização e processamento nos cenários medidos; nenhuma alteração necessária neste checkpoint.
 - [ ] Revisar UX desktop, atalhos, foco, contraste e mensagens de erro (navegação das views por teclado concluída).
+- [x] Implementar verificação manual de release e acesso aos instaladores permanentes.
 - [ ] Implementar e executar o fluxo E2E mínimo.
 - [x] Avaliar e documentar MSI/NSIS e estratégia WebView2 offline.
 - [x] Gerar build release Windows x64 e instaladores padrão/offline.
@@ -247,6 +248,7 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 | Biblioteca de Gantt | Resolvida na Fase 4 | ADR 013 — SVAR React Gantt 2.7.1 |
 | Formato final `.projectflow` | Antes da Fase 6 | `import-export.md` e ADR se necessário |
 | Bundle WebView2 e instalador offline | Resolvida na Fase 7 | ADR 017 — NSIS padrão + variante offline |
+| Política de atualização sem chaves | Resolvida na Fase 7 | ADR 018 — consulta manual e instalação externa |
 
 ## Histórico de evolução
 
@@ -700,6 +702,46 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - A validação de instalação, atualização, desinstalação e operação sem internet
   numa máquina limpa continua pendente e impede concluir a fase.
 - Commit: `não commitado`; nenhum push, release ou alteração remota foi feita.
+
+### 30 de agosto de 2026 — Verificação manual de atualização
+
+- A release pública `v0.1.0` confirmou os nomes permanentes dos instaladores
+  padrão e offline e o endpoint `releases/latest` do GitHub.
+- **Ajuda > Verificar atualizações** consulta a API pública somente após clique,
+  valida release estável, SemVer e presença do instalador esperado e compara a
+  tag com a versão compilada.
+- Quando existe versão superior, o download padrão ou offline é aberto no
+  navegador. O aplicativo não baixa, executa ou instala conteúdo remoto.
+- CSP e capability foram limitadas à API de releases e aos dois assets do
+  repositório. Nenhum dado do workspace é enviado e o restante da aplicação
+  continua integralmente offline.
+- O plugin oficial Tauri Opener 2.5.4 foi adicionado localmente; a decisão está
+  no ADR 018.
+- A versão foi sincronizada em `0.1.1`; ela será a primeira release contendo o
+  verificador e poderá detectar uma futura `0.1.2`.
+- A publicação de backups verificados passou a repetir brevemente a troca
+  atômica quando o Windows mantém um handle SQLite transitório. Os 29 testes
+  Rust passaram duas vezes consecutivas após a correção.
+- Testes cobrem comparação de versão, contrato da release, asset ausente,
+  limite da API, versão atual, compilação à frente da release e abertura do
+  download. O gate final aprovou 92 testes TypeScript/React, 2 testes de
+  desempenho e 29 testes Rust/SQLite.
+- Commit: `não commitado`; nenhuma tag, release ou alteração remota foi feita
+  pelo agente.
+
+### 31 de agosto de 2026 — Pacote local completo da v0.1.1
+
+- Os instaladores NSIS padrão e offline foram recompilados com a versão
+  `0.1.1` e os nomes permanentes usados pelo verificador de atualizações.
+- A pasta ignorada `.local/distribution/v0.1.1/` reúne os dois instaladores,
+  `SHA256SUMS.txt` e as notas completas para publicação.
+- O instalador padrão possui 3.951.599 bytes e SHA-256
+  `F172B2EE584E2E6B4AF52B671044BA2BA08BA98327AF4879EB3DE5239E134C5C`.
+- O instalador offline possui 265.777.280 bytes e SHA-256
+  `58A51FACA3AC7C789CDD29A42EB7B62120BE7ABC57673B674E68793CFCA74E06`.
+- Ambos informam versão `0.1.1`; os hashes foram revalidados e a ausência de
+  assinatura Authenticode permanece documentada.
+- Nenhum commit, tag, push ou release remoto foi executado pelo agente.
 
 ## Regras permanentes de acompanhamento
 

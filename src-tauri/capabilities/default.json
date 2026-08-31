@@ -8,6 +8,17 @@
   "permissions": [
     "core:default",
     "sql:default",
-    "log:default"
+    "log:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://github.com/machado-jean/project-flow/releases/latest/download/ProjectFlow-Windows-x64-Setup.exe"
+        },
+        {
+          "url": "https://github.com/machado-jean/project-flow/releases/latest/download/ProjectFlow-Windows-x64-Offline-Setup.exe"
+        }
+      ]
+    }
   ]
 }

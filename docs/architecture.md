@@ -153,9 +153,16 @@ regras detalhadas e a matriz de testes estão em [scheduling.md](scheduling.md).
 
 ## Segurança e operação local
 
-- CSP bloqueia origens remotas por padrão e permite apenas os protocolos locais necessários ao IPC/assets.
-- Capabilities habilitam apenas `core:default`, leitura/carga SQL padrão e logging.
+- CSP bloqueia origens remotas por padrão. Além dos protocolos locais de
+  IPC/assets, somente `https://api.github.com` é permitido para a verificação
+  manual de atualização.
+- Capabilities habilitam `core:default`, leitura/carga SQL padrão, logging e
+  abertura exclusivamente dos dois links permanentes de instalador do
+  repositório ProjectFlow.
 - Não há backend remoto, telemetria, conta ou sincronização.
+- Nenhuma consulta remota ocorre na inicialização. **Ajuda > Verificar
+  atualizações** consulta a release pública somente após ação do usuário, sem
+  enviar dados do workspace; ver [ADR 018](decisions/018-manual-update-check.md).
 - Logs usam o diretório recomendado `LocalAppData` e nível máximo `Info`.
 - Bancos e backups de desenvolvimento ficam em `.local/`, fora do Git; builds
   instaláveis não dependem desse diretório.

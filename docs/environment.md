@@ -56,6 +56,7 @@ portanto o recurso não foi habilitado nem alterado.
 | SVAR React Gantt | 2.7.1 | MIT | renderer local do Gantt, carregado sob demanda |
 | date-holidays | 3.36.0 | ISC (código) / CC BY-SA 3.0 (dados) | catálogo offline de feriados brasileiros, carregado sob demanda |
 | Tauri Dialog plugin | 2.7.2 | MIT/Apache-2.0 | seletores nativos de exportação/importação |
+| Tauri Opener plugin | 2.5.4 | MIT/Apache-2.0 | abertura restrita dos instaladores publicados no navegador padrão |
 | zip (crate) | 8.6.0 | MIT | leitura e escrita estrita de `.projectflow` |
 | sha2 (crate) | 0.11.0 | MIT/Apache-2.0 | integridade SHA-256 dos pacotes |
 | uuid (crate) | 1.26.0 | MIT/Apache-2.0 | remapeamento na importação como cópia |
@@ -229,3 +230,23 @@ Gates deste checkpoint: 85 testes TypeScript/React, 2 testes de desempenho e
 29 testes Rust/SQLite aprovados; lint, typecheck, build web, Cargo
 fmt/check/test/Clippy, build dos dois instaladores, release local de teste e
 auditoria npm sem vulnerabilidades também aprovados.
+
+Após a publicação da `v0.1.0`, `@tauri-apps/plugin-opener` e
+`tauri-plugin-opener` 2.5.4 foram adicionados somente ao projeto. A capability
+permite os dois links permanentes do GitHub e a CSP permite consulta somente à
+API de releases. A validação passou em 92 testes TypeScript/React e a
+auditoria npm permaneceu sem vulnerabilidades.
+
+Artefatos da `v0.1.1` gerados em 31/08/2026 e preservados em
+`.local/distribution/v0.1.1/`:
+
+| Arquivo | Tamanho | SHA-256 |
+| --- | ---: | --- |
+| `ProjectFlow-Windows-x64-Setup.exe` | 3.951.599 bytes | `F172B2EE584E2E6B4AF52B671044BA2BA08BA98327AF4879EB3DE5239E134C5C` |
+| `ProjectFlow-Windows-x64-Offline-Setup.exe` | 265.777.280 bytes | `58A51FACA3AC7C789CDD29A42EB7B62120BE7ABC57673B674E68793CFCA74E06` |
+
+Os dois arquivos informam versão `0.1.1`, tiveram os hashes novamente
+comparados com `SHA256SUMS.txt` e permanecem sem assinatura Authenticode. O
+download realizado durante o build offline foi apenas o redistribuível oficial
+do WebView2 usado pelo empacotador Tauri; nenhuma ferramenta global foi
+instalada ou atualizada.

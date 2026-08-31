@@ -4,6 +4,8 @@ use std::{
     io::{Read, Write},
     path::{Path, PathBuf},
     str::FromStr,
+    thread,
+    time::Duration,
 };
 
 use chrono::Utc;
@@ -33,6 +35,21 @@ const DATA_ENTRY: &str = "data.sqlite";
 const README_ENTRY: &str = "README.txt";
 
 type PortabilityResult<T> = Result<T, String>;
+
+fn rename_after_validation(source: &Path, destination: &Path) -> std::io::Result<()> {
+    const MAX_ATTEMPTS: u64 = 8;
+    for attempt in 0..MAX_ATTEMPTS {
+        match fs::rename(source, destination) {
+            Ok(()) => return Ok(()),
+            Err(error) if error.raw_os_error() == Some(32) && attempt + 1 < MAX_ATTEMPTS => {
+                // Windows can briefly retain a SQLite handle after validation.
+                thread::sleep(Duration::from_millis(25 * (attempt + 1)));
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    unreachable!("the retry loop always returns on its final attempt")
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -503,7 +520,7 @@ pub async fn create_backup_at(
             format!("Falha ao substituir o backup confirmado pelo usuário: {error}")
         })?;
     }
-    fs::rename(&temporary, destination).map_err(|error| {
+    rename_after_validation(&temporary, destination).map_err(|error| {
         let _ = fs::remove_file(&temporary);
         format!("Falha ao publicar o backup verificado: {error}")
     })?;

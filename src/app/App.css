@@ -260,6 +260,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .help-menu-popover p { margin: 0; color: #647387; font-size: 10px; line-height: 1.45; }
 .help-menu-popover hr { width: 100%; margin: 3px 0; border: 0; border-top: 1px solid #e5eaf0; }
 .help-menu-popover small { color: #8290a0; font-size: 9px; }
+.update-check { display: grid; gap: 6px; }
+.update-check > button, .update-check-result > button { min-height: 30px; padding: 6px 8px; text-align: left; color: #315d9e; background: #f5f8ff; border: 1px solid #c6d7f1; border-radius: 6px; font-size: 10px; font-weight: 680; }
+.update-check > button:hover:not(:disabled), .update-check-result > button:hover:not(:disabled) { color: #174ea6; background: #eaf1fb; }
+.update-check-result { display: grid; gap: 5px; }
+.update-check-result p { padding: 6px 7px; color: #40546b; background: #f6f8fa; border-radius: 5px; }
+.update-check-result .text-update-button { color: #59697b; background: transparent; border-color: transparent; }
+.update-check-result .update-check-error { color: #8f211a; background: #fff0ee; }
 .view-command-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 26px 0; }
 .view-tabs { display: inline-flex; padding: 3px; background: #e8edf3; border-radius: 8px; }
 .view-tabs button { min-width: 88px; padding: 7px 13px; color: #637082; background: transparent; border: 0; border-radius: 6px; font-size: 11px; font-weight: 700; }
