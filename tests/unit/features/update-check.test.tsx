@@ -35,7 +35,7 @@ describe("verificação de atualização no menu Ajuda", () => {
 
   it("confirma quando a versão instalada já é a mais recente", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(Response.json({
-      tag_name: "v0.1.1",
+      tag_name: "v0.1.2",
       draft: false,
       prerelease: false,
       assets: [{ name: "ProjectFlow-Windows-x64-Setup.exe" }],
@@ -45,7 +45,7 @@ describe("verificação de atualização no menu Ajuda", () => {
     fireEvent.click(screen.getByText("Ajuda"));
     fireEvent.click(screen.getByRole("button", { name: "Verificar atualizações" }));
 
-    expect(await screen.findByText("Você já está na versão mais recente (0.1.1)."))
+    expect(await screen.findByText("Você já está na versão mais recente (0.1.2)."))
       .toBeVisible();
   });
 
@@ -62,7 +62,7 @@ describe("verificação de atualização no menu Ajuda", () => {
     fireEvent.click(screen.getByRole("button", { name: "Verificar atualizações" }));
 
     expect(await screen.findByText(
-      "Esta compilação (0.1.1) é mais recente que a release publicada (0.1.0).",
+      "Esta compilação (0.1.2) é mais recente que a release publicada (0.1.0).",
     )).toBeVisible();
   });
 });

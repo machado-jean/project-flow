@@ -293,3 +293,20 @@ comparados com `SHA256SUMS.txt` e permanecem sem assinatura Authenticode. O
 download realizado durante o build offline foi apenas o redistribuível oficial
 do WebView2 usado pelo empacotador Tauri; nenhuma ferramenta global foi
 instalada ou atualizada.
+
+Artefatos da `v0.1.2` gerados em 01/09/2026 e preservados em
+`.local/distribution/v0.1.2/`:
+
+| Arquivo | Tamanho | SHA-256 |
+| --- | ---: | --- |
+| `ProjectFlow-Windows-x64-Setup.exe` | 3.957.527 bytes | `9AE414D773C083784F2CE8CE7EF93F3D5BD876D9C6F6AD32C7BC7245ED410C7A` |
+| `ProjectFlow-Windows-x64-Offline-Setup.exe` | 265.780.006 bytes | `DD8AF202650CE9139062DEA08BE133824168784D2FC95AFBC80C56CB35C61F87` |
+
+Antes da recompilação, o run `33470898672` do GitHub Actions revelou um
+bloqueio transitório de arquivo (`os error 32`) na segunda execução consecutiva
+da suíte Rust. A publicação atômica do backup passou a tolerar, por tempo
+limitado, somente os erros Windows 5 e 32. O workflow também deixou de repetir a
+suíte nativa dentro da jornada E2E. O teste de restauração passou cinco vezes
+seguidas e o gate equivalente ao CI aprovou 94 testes TypeScript/React, 30
+testes Rust/SQLite, 2 testes de desempenho e 1 jornada E2E. Nenhuma ferramenta
+global foi instalada ou atualizada.

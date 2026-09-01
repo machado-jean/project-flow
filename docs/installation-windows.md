@@ -56,9 +56,10 @@ navegador; a alternativa offline também está disponível.
 O ProjectFlow não baixa nem executa o instalador internamente. Depois do
 download, feche o aplicativo e execute manualmente o arquivo obtido.
 
-A `v0.1.0` é anterior ao verificador. A `v0.1.1` será a primeira versão com
-essa opção; para comprovar o ciclo completo, instale a `v0.1.1` e publique
-depois uma versão superior, como `v0.1.2`, mantendo os mesmos nomes dos assets.
+A `v0.1.0` é anterior ao verificador e a `v0.1.1` foi a primeira versão com
+essa opção. Para comprovar o ciclo completo, instale a `v0.1.1`, publique a
+`v0.1.2` mantendo os mesmos nomes dos assets e execute **Ajuda > Verificar
+atualizações**.
 
 Feche o aplicativo e execute o instalador de versão mais recente. O instalador
 atualiza os binários; o banco, backups e logs permanecem no perfil do usuário e

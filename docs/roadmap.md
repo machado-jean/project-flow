@@ -34,10 +34,10 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | Etapa do produto | Hardening e distribuição Windows em andamento |
 | Fase ativa | Fase 7 — E2E e auditoria final de UX/acessibilidade concluídos localmente |
 | Próxima fase | Validar instalação, atualização, preservação de dados e operação offline em máquina limpa |
-| Versão da aplicação | `0.1.1` |
+| Versão da aplicação | `0.1.2` |
 | Versão do schema SQLite | `4` |
-| Último commit estável | `8167854` — `Add manual update checks and installer download support` |
-| Branch de trabalho | `main`, com E2E em camadas e auditoria de UX/acessibilidade ainda não commitados |
+| Último commit estável | `87352f4` — `Add layered E2E coverage and finalize UX accessibility audit` |
+| Branch de trabalho | `main`, preparando os artefatos locais da `v0.1.2` |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -788,6 +788,23 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
   vulnerabilidades e empacotamento NSIS padrão. O `.exe` compartilhado de teste
   foi recompilado por último.
 - Commit: `não commitado`; nenhum push, tag ou release foi executado pelo agente.
+
+### 1º de setembro de 2026 — Preparação local da v0.1.2 e correção do CI
+
+- O run `33470898672` falhou porque a suíte Rust era executada duas vezes no
+  mesmo job e o Windows reteve temporariamente o arquivo validado de backup na
+  segunda passagem (`os error 32`). As etapas posteriores apareceram como
+  ignoradas; não eram jobs independentes com falhas distintas.
+- A troca atômica do backup agora repete somente erros transitórios Windows 5 e
+  32, com espera limitada. O teste afetado passou cinco vezes consecutivas.
+- O quality gate mantém os 30 testes Rust/SQLite na etapa nativa e executa
+  apenas a jornada React/domínio na etapa E2E, eliminando trabalho duplicado.
+- O gate local equivalente ao CI aprovou 94 testes regulares, 30 testes
+  Rust/SQLite, 2 testes de desempenho, 1 jornada E2E, lint, typecheck, Cargo
+  fmt/check/Clippy e os builds NSIS padrão e offline.
+- Os dois instaladores `v0.1.2`, hashes e notas de release estão em
+  `.local/distribution/v0.1.2/`. Nenhum commit, push, tag ou release remoto foi
+  executado pelo agente.
 
 ## Regras permanentes de acompanhamento
 

@@ -37,13 +37,17 @@ const README_ENTRY: &str = "README.txt";
 type PortabilityResult<T> = Result<T, String>;
 
 fn rename_after_validation(source: &Path, destination: &Path) -> std::io::Result<()> {
-    const MAX_ATTEMPTS: u64 = 8;
+    const MAX_ATTEMPTS: u64 = 24;
     for attempt in 0..MAX_ATTEMPTS {
         match fs::rename(source, destination) {
             Ok(()) => return Ok(()),
-            Err(error) if error.raw_os_error() == Some(32) && attempt + 1 < MAX_ATTEMPTS => {
-                // Windows can briefly retain a SQLite handle after validation.
-                thread::sleep(Duration::from_millis(25 * (attempt + 1)));
+            Err(error)
+                if matches!(error.raw_os_error(), Some(5 | 32)) && attempt + 1 < MAX_ATTEMPTS =>
+            {
+                // WebView2, SQLite or antivirus scanning can briefly retain the
+                // validated file on Windows. Retry only sharing/access errors,
+                // with a bounded delay, so permanent failures still surface.
+                thread::sleep(Duration::from_millis(50 * (attempt + 1).min(5)));
             }
             Err(error) => return Err(error),
         }

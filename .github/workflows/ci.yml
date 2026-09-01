@@ -57,7 +57,10 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
 
       - name: Run minimum ProjectFlow journey
-        run: npm run test:e2e
+        # Native SQLite/portability coverage already ran above. Keeping the
+        # application journey separate avoids reopening the same temporary
+        # backup files twice in one Windows runner job.
+        run: npm run test:e2e:application
 
       - name: Build Windows installer
         run: npm run tauri:build:installer
