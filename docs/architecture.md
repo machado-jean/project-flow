@@ -151,6 +151,13 @@ regras detalhadas e a matriz de testes estão em [scheduling.md](scheduling.md).
 - a janela desktop inicia maximizada, preservando dimensões mínimas para
   restauração; ver [ADR 013](decisions/013-svar-react-gantt.md).
 
+Os comportamentos transversais de acessibilidade ficam em componentes de
+apresentação reutilizáveis. `ModalDialog` centraliza foco inicial, contenção de
+`Tab`, fechamento por `Esc` e restauração de foco; `WorkspaceMenuBar` aplica o
+mesmo fechamento previsível aos menus superiores. Nenhuma dessas primitivas
+acessa domínio, repository ou persistência. A auditoria e o roteiro manual
+estão em [ux-accessibility.md](ux-accessibility.md).
+
 ## Segurança e operação local
 
 - CSP bloqueia origens remotas por padrão. Além dos protocolos locais de
@@ -168,11 +175,28 @@ regras detalhadas e a matriz de testes estão em [scheduling.md](scheduling.md).
   instaláveis não dependem desse diretório.
 - Pacotes externos passam por limites, caminho confinado, SHA-256, quick check, chaves estrangeiras, schema, catálogo e validação de grafos antes de qualquer transação; um backup automático precede importação e restauração.
 
+## Validação E2E em camadas
+
+O gate obrigatório `npm run test:e2e` combina duas fronteiras. A jornada React
+exercita pela interface todo o cenário mínimo — criação, hierarquia, cadeia
+A → B → C, propagação, views, duplicação e round-trip semântico — sobre um
+repositório em memória controlado. Em seguida, os testes Rust exercitam SQLite,
+migrations, transações e os pacotes reais de exportação/importação. Assim, o CI
+valida o comportamento completo sem depender de automação global do Windows.
+
+Um harness adicional tenta dirigir a janela Tauri real por CDP. A feature Cargo
+`e2e` isola banco, backups e logs em `.local/e2e/` e habilita destinos de diálogo
+determinísticos somente nesse build; produção não interpreta essas variáveis.
+Esse harness é diagnóstico e não bloqueia o release enquanto a regressão do
+WebView2 150+ impede a criação confiável da janela automatizada. Ver
+[ADR 019](decisions/019-webview2-cdp-e2e.md).
+
 ## Qualidade
 
 - TypeScript strict com verificações adicionais de campos opcionais e acesso indexado.
 - ESLint type-aware com regras de React Hooks.
 - Vitest + Testing Library para UI e domínio TypeScript.
-- Testes Rust reais contra SQLite para migrations.
+- Jornada E2E mínima em React + domínio, complementada por testes Rust reais de SQLite e portabilidade.
+- Playwright Core/CDP mantido somente para diagnóstico da janela Tauri no WebView2.
 - Clippy com warnings tratados como erro.
 - CI exclusiva em `windows-latest`, sem jobs Linux/macOS.

@@ -18,7 +18,7 @@ body {
 button, input, select, textarea { color: inherit; font: inherit; }
 button, select { cursor: pointer; }
 button:disabled, input:disabled, select:disabled, textarea:disabled { cursor: not-allowed; opacity: 0.58; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, [tabindex]:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 
 .sr-only {
   position: absolute;
@@ -31,6 +31,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   white-space: nowrap;
   border: 0;
 }
+
+.skip-link {
+  position: fixed;
+  z-index: 200;
+  top: 8px;
+  left: 8px;
+  padding: 9px 12px;
+  color: #fff;
+  background: #174ea6;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-150%);
+}
+.skip-link:focus { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.workspace-main:focus { outline: none; }
 
 .app-shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; background: #f4f6f8; }
 .project-sidebar { display: flex; min-height: 100vh; flex-direction: column; padding: 18px 14px; color: #e8edf4; background: #17212e; border-right: 1px solid #0f1720; }
@@ -412,6 +430,85 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .import-checkbox input { width: 17px; height: 17px; }
 .import-warning { padding: 9px 11px; margin: 15px 0 0; color: #79531e; background: #fff7e5; border: 1px solid #ecd49b; border-radius: 6px; font-size: 9px; line-height: 1.45; }
 .portability-modal footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.portability-modal:focus, .template-dialog:focus { outline: none; }
+
+/* A interface permanece densa, mas textos operacionais não dependem de tipos minúsculos. */
+.workspace-menu > summary,
+.portability-menu .portability-actions > button,
+.portability-menu .portability-more > summary,
+.project-actions-popover button,
+.help-menu-popover p,
+.update-check > button,
+.update-check-result > button { font-size: 12px; }
+.help-menu-popover strong { font-size: 13px; }
+.help-menu-popover small,
+.workspace-menu .menu-panel-heading small,
+.shared-source-note,
+.filter-heading span { color: #64748b; font-size: 11px; }
+.filter-grid label,
+.task-details label,
+.template-dialog label,
+.calendar-exception-form label { color: #596879; font-size: 11px; }
+.filter-grid input,
+.filter-grid select,
+.task-details input,
+.task-details select,
+.task-details textarea,
+.template-dialog input,
+.template-dialog textarea { font-size: 12px; }
+.task-table th { color: #596879; font-size: 11px; }
+.summary-badge,
+.template-count { font-size: 10px; }
+.inline-link,
+.task-reuse-actions span,
+.muted-text,
+.calendar-warning,
+.conflict-message,
+.summary-dependency-label,
+.dependency-item,
+.dependency-add select,
+.dependency-add input,
+.dependency-add button,
+.saved-label { color: #64748b; font-size: 11px; }
+.task-reuse-actions button,
+.save-row-button,
+.delete-row-button { font-size: 11px; }
+.kanban-column > header h3,
+.kanban-card-title strong { font-size: 12px; }
+.kanban-column > header span,
+.kanban-path,
+.kanban-card-title > span,
+.kanban-meta,
+.kanban-card-footer,
+.kanban-tags li,
+.kanban-move,
+.kanban-move select { font-size: 11px; }
+.kanban-column-empty { color: #64748b; font-size: 11px; }
+.gantt-scale-control,
+.gantt-legend,
+.gantt-dependency-focus,
+.gantt-inspector > label,
+.gantt-schedule-form label,
+.gantt-inspector dt,
+.gantt-inspector dd,
+.gantt-inspector-empty,
+.gantt-summary-note,
+.gantt-unscheduled-note,
+.field-error { font-size: 11px; }
+.gantt-scale-control select,
+.gantt-dependency-focus select,
+.gantt-inspector select,
+.gantt-schedule-form input { font-size: 12px; }
+.portability-status,
+.portability-message,
+.portability-error,
+.portability-modal header p,
+.import-list h3,
+.import-list > p,
+.import-row small,
+.import-warning { font-size: 11px; }
+.import-row strong,
+.import-row select { font-size: 12px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -441,3 +538,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 @media (prefers-reduced-motion: reduce) { .loading-indicator { animation: none; } }
+
+@media (forced-colors: active) {
+  .project-item.selected,
+  .view-tabs button.active,
+  .task-row.schedule-conflict td,
+  .kanban-column,
+  .priority,
+  .gantt-chart-shell .wx-line-draw { border: 1px solid CanvasText; }
+  .kanban-progress span { background: Highlight; }
+}

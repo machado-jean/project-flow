@@ -13,6 +13,7 @@ import { useWorkspace } from "../state/use-workspace";
 import "./App.css";
 import { scheduleYears } from "../domain/calendars/official-holidays";
 import { WorkspaceHelpMenu } from "../components/WorkspaceHelpMenu";
+import { WorkspaceMenuBar } from "../components/WorkspaceMenuBar";
 
 interface AppProps {
   readonly repository?: WorkspaceRepository;
@@ -38,6 +39,7 @@ function App({ repository }: AppProps) {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#workspace-content">Ir para o conteúdo principal</a>
       <ProjectSidebar
         projects={workspace.projects}
         selectedProjectId={workspace.selectedProjectId}
@@ -46,11 +48,11 @@ function App({ repository }: AppProps) {
         onCreate={workspace.createProject}
       />
 
-      <main className="workspace-main">
+      <main className="workspace-main" id="workspace-content" tabIndex={-1}>
         {workspace.error !== null ? (
           <div className="error-banner" role="alert">
             <span>{workspace.error}</span>
-            <button type="button" onClick={workspace.clearError}>Fechar</button>
+            <button type="button" aria-label="Fechar mensagem de erro" onClick={workspace.clearError}>Fechar</button>
           </div>
         ) : null}
 
@@ -62,7 +64,7 @@ function App({ repository }: AppProps) {
           </section>
         ) : workspace.selectedProject === null ? (
           <>
-            <nav className="workspace-menu-bar" aria-label="Menu principal">
+            <WorkspaceMenuBar>
               <PortabilityPanel
                 repository={activeRepository}
                 selectedProject={null}
@@ -70,7 +72,7 @@ function App({ repository }: AppProps) {
                 onWorkspaceChanged={workspace.reloadWorkspace}
               />
               <WorkspaceHelpMenu />
-            </nav>
+            </WorkspaceMenuBar>
             <section className="center-state">
               <span className="empty-illustration" aria-hidden="true">PF</span>
               <h1>Organize seu primeiro projeto</h1>
@@ -79,7 +81,7 @@ function App({ repository }: AppProps) {
           </>
         ) : (
           <div className="project-workspace">
-            <nav className="workspace-menu-bar" aria-label="Menu principal">
+            <WorkspaceMenuBar>
               <PortabilityPanel
                 repository={activeRepository}
                 selectedProject={workspace.selectedProject}
@@ -114,7 +116,7 @@ function App({ repository }: AppProps) {
                 onDelete={workspace.removeTemplate}
               />
               <WorkspaceHelpMenu />
-            </nav>
+            </WorkspaceMenuBar>
             <ProjectHeader
               key={`${workspace.selectedProject.id}-${workspace.selectedProject.updatedAt}`}
               project={workspace.selectedProject}

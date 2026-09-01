@@ -40,14 +40,20 @@ As Fases 0 a 6 estão concluídas e o Checkpoint Git 7 foi consolidado no commit
 - backup SQLite verificado e restauração integral com backup de segurança;
 - seletor de destino para backup manual e acesso discreto à pasta dos backups
   automáticos;
-- interface integralmente em português.
+- interface integralmente em português;
+- navegação por teclado com link de salto, foco visível, menus e diálogos com
+  retorno de foco, além de alternativas nativas às interações visuais;
 - verificação manual de nova versão pelo GitHub, sem consulta na inicialização,
   com download aberto no navegador padrão.
 
 A Fase 7 está em andamento. O primeiro incremento adicionou orçamentos de
-desempenho, navegação das views por teclado e instaladores NSIS padrão e
-offline. A validação em uma máquina Windows limpa e o E2E nativo ainda são
-critérios de saída pendentes.
+desempenho, navegação das views por teclado, instaladores NSIS padrão/offline e
+um fluxo automatizado mínimo em camadas. A revisão final de UX/acessibilidade
+foi concluída e está registrada em
+[docs/ux-accessibility.md](docs/ux-accessibility.md). A validação manual em uma
+máquina Windows limpa ainda é critério de saída pendente. A automação da janela
+Tauri permanece como diagnóstico não bloqueante
+devido a uma regressão do WebView2 150+ registrada no ADR 019.
 
 O progresso por fase, os checkpoints e o histórico de entregas são mantidos em [docs/roadmap.md](docs/roadmap.md).
 
@@ -70,6 +76,7 @@ Documentação principal:
 - [roadmap e histórico](docs/roadmap.md);
 - [importação, exportação e backup](docs/import-export.md);
 - [instalação e manutenção no Windows](docs/installation-windows.md);
+- [auditoria de UX e acessibilidade](docs/ux-accessibility.md);
 - [decisões arquiteturais](docs/decisions/).
 
 ## Preparação

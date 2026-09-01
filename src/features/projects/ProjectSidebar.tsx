@@ -78,6 +78,7 @@ export function ProjectSidebar({
             className={project.id === selectedProjectId ? "project-item selected" : "project-item"}
             type="button"
             key={project.id}
+            aria-current={project.id === selectedProjectId ? "page" : undefined}
             onClick={() => { onSelect(project.id); }}
           >
             <span className="project-color" aria-hidden="true" />

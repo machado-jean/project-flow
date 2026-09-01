@@ -10,5 +10,11 @@
     "types": ["node"],
     "verbatimModuleSyntax": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "vitest.performance.config.ts"]
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "vitest.desktop-e2e.config.ts",
+    "vitest.e2e.config.ts",
+    "vitest.performance.config.ts"
+  ]
 }

@@ -462,7 +462,9 @@ describe("aplicação ProjectFlow", () => {
   it("abre detalhes em uma linha ampla e explica o código visual", async () => {
     render(<App repository={new MemoryWorkspaceRepository({ projects: [project()], tasks: [task()] })} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Detalhes" }));
+    const detailsButton = await screen.findByRole("button", { name: "Detalhes" });
+    expect(detailsButton).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(detailsButton);
 
     const code = screen.getByLabelText("Código visual da tarefa");
     const detailsRow = code.closest("tr");
@@ -473,6 +475,25 @@ describe("aplicação ProjectFlow", () => {
       expect.stringContaining("DEV-01"),
     );
     expect(screen.getByText(/Ele não altera o UUID interno da tarefa/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ocultar detalhes" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("table")).toHaveAccessibleName(/Tarefas do projeto/);
+  });
+
+  it("identifica o projeto atual e fecha o menu superior com Escape", async () => {
+    render(<App repository={new MemoryWorkspaceRepository({ projects: [project()] })} />);
+    await screen.findByRole("heading", { name: "Tabela de tarefas" });
+
+    expect(screen.getByRole("button", { name: /Projeto Alfa/ })).toHaveAttribute("aria-current", "page");
+    const fileSummary = screen.getByText("Arquivo");
+    fireEvent.click(fileSummary);
+    const fileMenu = fileSummary.closest("details");
+    expect(fileMenu).toHaveAttribute("open");
+
+    const importButton = screen.getByRole("button", { name: "Importar pacote" });
+    importButton.focus();
+    fireEvent.keyDown(importButton, { key: "Escape" });
+    expect(fileMenu).not.toHaveAttribute("open");
+    expect(fileSummary).toHaveFocus();
   });
 
   it("apresenta erros de validação em português sem persistir dados incompletos", async () => {
@@ -813,7 +834,10 @@ describe("aplicação ProjectFlow", () => {
     });
     render(<App repository={repository} />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Expandir subtarefas" }));
+    const expandButton = await screen.findByRole("button", { name: "Expandir subtarefas" });
+    expect(expandButton).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(expandButton);
+    expect(screen.getByRole("button", { name: "Recolher subtarefas" })).toHaveAttribute("aria-expanded", "true");
     const starts = screen.getAllByLabelText("Início da tarefa");
     const ends = screen.getAllByLabelText("Fim da tarefa");
     const durations = screen.getAllByLabelText("Duração da tarefa");
@@ -834,6 +858,7 @@ describe("aplicação ProjectFlow", () => {
 
     fireEvent.click(await screen.findByRole("tab", { name: "Kanban" }));
     expect(screen.getByRole("heading", { name: "Quadro Kanban" })).toBeVisible();
+    expect(screen.getByText("28/08/2026")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Status de Preparar operação"), {
       target: { value: "IN_PROGRESS" },
     });

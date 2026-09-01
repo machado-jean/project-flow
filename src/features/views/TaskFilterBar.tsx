@@ -28,7 +28,7 @@ export function TaskFilterBar({
       <div className="filter-heading">
         <div>
           <strong id="task-filters-title">Localizar e filtrar</strong>
-          <span>{String(resultCount)} de {String(totalCount)} tarefas</span>
+          <span aria-live="polite">{String(resultCount)} de {String(totalCount)} tarefas</span>
         </div>
         <button
           type="button"

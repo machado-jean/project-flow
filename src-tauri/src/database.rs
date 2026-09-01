@@ -13,7 +13,11 @@ pub(crate) const SCHEDULING_SCHEMA: &str = include_str!("../migrations/0003_sche
 pub(crate) const REUSE_SCHEMA: &str = include_str!("../migrations/0004_reuse.sql");
 
 pub fn uses_shared_development_database() -> bool {
-    cfg!(any(debug_assertions, feature = "shared-dev-data"))
+    !uses_e2e_database() && cfg!(any(debug_assertions, feature = "shared-dev-data"))
+}
+
+pub fn uses_e2e_database() -> bool {
+    cfg!(feature = "e2e")
 }
 
 pub fn project_root() -> PathBuf {
@@ -30,7 +34,18 @@ pub fn shared_development_database_path() -> PathBuf {
         .join(DATABASE_FILENAME)
 }
 
+pub fn e2e_database_path() -> PathBuf {
+    project_root()
+        .join(".local")
+        .join("e2e")
+        .join("data")
+        .join(DATABASE_FILENAME)
+}
+
 pub fn database_path(app_config_dir: &Path) -> PathBuf {
+    if uses_e2e_database() {
+        return e2e_database_path();
+    }
     database_path_for_mode(
         app_config_dir,
         &project_root(),
@@ -39,7 +54,9 @@ pub fn database_path(app_config_dir: &Path) -> PathBuf {
 }
 
 pub fn database_backup_dir(app_config_dir: &Path) -> PathBuf {
-    if uses_shared_development_database() {
+    if uses_e2e_database() {
+        project_root().join(".local").join("e2e").join("backups")
+    } else if uses_shared_development_database() {
         project_root().join(".local").join("backups")
     } else {
         app_config_dir.join("backups")
@@ -47,7 +64,9 @@ pub fn database_backup_dir(app_config_dir: &Path) -> PathBuf {
 }
 
 pub fn database_url() -> String {
-    if uses_shared_development_database() {
+    if uses_e2e_database() {
+        sqlite_url(&e2e_database_path())
+    } else if uses_shared_development_database() {
         sqlite_url(&shared_development_database_path())
     } else {
         PRODUCTION_DATABASE_URL.to_owned()
@@ -138,6 +157,21 @@ mod tests {
             database_path_for_mode(app_config, Path::new("C:/workspace/project-flow"), false);
 
         assert_eq!(path, app_config.join(DATABASE_FILENAME));
+    }
+
+    #[test]
+    fn e2e_database_is_isolated_from_development_and_production() {
+        let path = super::project_root()
+            .join(".local")
+            .join("e2e")
+            .join("data")
+            .join(DATABASE_FILENAME);
+
+        assert_eq!(super::e2e_database_path(), path);
+        assert_ne!(
+            super::e2e_database_path(),
+            super::shared_development_database_path()
+        );
     }
 
     async fn in_memory_database() -> SqliteConnection {

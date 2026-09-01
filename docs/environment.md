@@ -57,6 +57,7 @@ portanto o recurso não foi habilitado nem alterado.
 | date-holidays | 3.36.0 | ISC (código) / CC BY-SA 3.0 (dados) | catálogo offline de feriados brasileiros, carregado sob demanda |
 | Tauri Dialog plugin | 2.7.2 | MIT/Apache-2.0 | seletores nativos de exportação/importação |
 | Tauri Opener plugin | 2.5.4 | MIT/Apache-2.0 | abertura restrita dos instaladores publicados no navegador padrão |
+| Playwright Core | 1.62.1 | Apache-2.0 | diagnóstico CDP local da janela Tauri; sem navegador incorporado |
 | zip (crate) | 8.6.0 | MIT | leitura e escrita estrita de `.projectflow` |
 | sha2 (crate) | 0.11.0 | MIT/Apache-2.0 | integridade SHA-256 dos pacotes |
 | uuid (crate) | 1.26.0 | MIT/Apache-2.0 | remapeamento na importação como cópia |
@@ -92,6 +93,7 @@ npm run tauri add sql
 cargo add tauri-plugin-sql --features sqlite
 npm run tauri add log
 npm install @svar-ui/react-gantt@2.7.1 --save-exact
+npm install --save-dev --save-exact playwright-core@1.62.1
 cd src-tauri
 cargo add tauri-plugin-dialog@2.7.2
 cargo add zip@8.6.0 --no-default-features
@@ -130,7 +132,9 @@ Instalação global:
 ```powershell
 npm ci
 npm run check
-npm audit --audit-level=high
+npm run test:e2e
+npm run test:performance
+npm audit --audit-level=low
 npm run tauri:build -- --no-bundle
 npm run tauri:build:test
 
@@ -139,6 +143,14 @@ cargo fmt --all -- --check
 cargo check --locked --all-targets
 cargo test --locked --all-targets
 cargo clippy --locked --all-targets -- -D warnings
+```
+
+Durante a investigação da automação da janela, o driver oficial foi instalado
+e retirado do perfil global Cargo:
+
+```powershell
+cargo install tauri-driver --version 2.0.6 --locked
+cargo uninstall tauri-driver
 ```
 
 O build de distribuição sem feature mantém dados no perfil do usuário. O comando
@@ -218,18 +230,49 @@ O pacote offline incorpora o WebView2 redistribuível obtido pela URL oficial da
 Microsoft usada pelo Tauri. A diferença de tamanho observada é compatível com a
 estratégia documentada no ADR 017.
 
-A combinação E2E recomendada pelo Tauri foi avaliada com
-`@wdio/tauri-service` 1.3.0 e WebdriverIO 9.31.x. Ela foi removida antes de
-qualquer implementação porque a resolução disponível introduziu 15 alertas npm
-de severidade alta em dependências de desenvolvimento. `npm audit` voltou a
-reportar zero vulnerabilidades depois da remoção. O runner nativo permanece
-pendente até existir uma resolução segura e compatível; nenhum plugin WDIO foi
-incluído no binário de produção.
+A combinação recomendada pelo Tauri foi reavaliada em 31/08/2026 com
+`@wdio/tauri-service` 1.3.0 e WebdriverIO 9.31.5. A resolução continuou trazendo
+15 alertas npm de severidade alta e não foi incorporada. O `tauri-driver` 2.0.6
+foi instalado provisoriamente no perfil Cargo durante a investigação e removido
+com `cargo uninstall tauri-driver`; nenhuma ferramenta E2E permaneceu global.
+Ele não é requisito para compilar, testar, instalar ou executar o produto.
 
-Gates deste checkpoint: 85 testes TypeScript/React, 2 testes de desempenho e
-29 testes Rust/SQLite aprovados; lint, typecheck, build web, Cargo
-fmt/check/test/Clippy, build dos dois instaladores, release local de teste e
-auditoria npm sem vulnerabilidades também aprovados.
+Também foi avaliado `playwright-core` 1.62.1 como cliente CDP. Ele não possui
+dependências transitivas, não baixa navegador e manteve `npm audit` limpo. No
+WebView2 151 deste host, contudo, a ativação da automação provoca
+`HRESULT 0x800700AA` ao criar a janela. O mesmo sintoma está registrado a partir
+do WebView2 150 no issue upstream `webdriverio/desktop-mobile#542`; portanto o
+harness desktop ficou diagnóstico e fora do gate de release. Nenhum plugin
+WDIO, servidor WebDriver ou porta CDP faz parte do binário de produção.
+
+Comandos do fluxo E2E obrigatório:
+
+```powershell
+npm run test:e2e
+```
+
+O comando executa a jornada React/domínio com repositório isolado e, depois, os
+testes Rust reais de SQLite, migrations, transações e portabilidade. O cenário
+aprova criação de projeto, cinco tarefas com subtarefa, cadeia A → B → C,
+propagação, Tabela/Kanban/Gantt, duplicação, exportação, workspace vazio,
+importação e comparação semântica. Ele também é executado pelo CI Windows.
+
+O diagnóstico não bloqueante da janela real pode ser repetido após uma correção
+upstream com `npm run test:e2e:desktop`; seus dados ficam em `.local/e2e/`.
+
+Gates atuais: 92 testes TypeScript/React regulares, 1 jornada E2E de aplicação,
+2 testes de desempenho e 30 testes Rust/SQLite aprovados; lint, typecheck, build
+web, Cargo fmt/check/test/Clippy, build NSIS de produção e auditoria npm sem
+vulnerabilidades também aprovados.
+
+A auditoria final de UX e acessibilidade de 01/09/2026 elevou a suíte regular
+para 94 testes TypeScript/React. Foram repetidos com sucesso `npm run check`,
+`npm run test:e2e`, `npm run test:performance`, Cargo fmt/check/test/Clippy,
+`npm audit --audit-level=high` e o build NSIS padrão. A auditoria npm encontrou
+zero vulnerabilidades. O executável de teste foi gerado novamente por último
+com `npm run tauri:build:test`, portanto
+`src-tauri/target/release/project-flow.exe` continua usando o banco
+compartilhado `.local/data/projectflow.sqlite`.
 
 Após a publicação da `v0.1.0`, `@tauri-apps/plugin-opener` e
 `tauri-plugin-opener` 2.5.4 foram adicionados somente ao projeto. A capability

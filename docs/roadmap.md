@@ -4,7 +4,7 @@ Este é o registro vivo de execução do ProjectFlow. Ele traduz o roadmap defin
 
 `AGENTS.md` continua sendo a fonte de verdade para produto, arquitetura e regras operacionais. Este documento não substitui a especificação e não deve introduzir escopo incompatível com ela.
 
-Última atualização: **30 de agosto de 2026**.
+Última atualização: **1º de setembro de 2026**.
 
 ## Como manter este documento
 
@@ -32,12 +32,12 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | Item | Estado |
 | --- | --- |
 | Etapa do produto | Hardening e distribuição Windows em andamento |
-| Fase ativa | Fase 7 — primeiro checkpoint técnico validado localmente |
-| Próxima fase | Concluir E2E e validar instalação/atualização offline em máquina limpa |
+| Fase ativa | Fase 7 — E2E e auditoria final de UX/acessibilidade concluídos localmente |
+| Próxima fase | Validar instalação, atualização, preservação de dados e operação offline em máquina limpa |
 | Versão da aplicação | `0.1.1` |
 | Versão do schema SQLite | `4` |
-| Último commit estável | `8de34a6` — `Advance Windows hardening and installer distribution` |
-| Branch de trabalho | `main`, com verificação manual de atualização ainda não commitada |
+| Último commit estável | `8167854` — `Add manual update checks and installer download support` |
+| Branch de trabalho | `main`, com E2E em camadas e auditoria de UX/acessibilidade ainda não commitados |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -210,9 +210,9 @@ Estado: **Em andamento**.
 
 - [x] Medir 1.000 tarefas por projeto e 10.000 por workspace.
 - [x] Avaliar virtualização e processamento nos cenários medidos; nenhuma alteração necessária neste checkpoint.
-- [ ] Revisar UX desktop, atalhos, foco, contraste e mensagens de erro (navegação das views por teclado concluída).
+- [x] Revisar UX desktop, atalhos, foco, contraste e mensagens de erro.
 - [x] Implementar verificação manual de release e acesso aos instaladores permanentes.
-- [ ] Implementar e executar o fluxo E2E mínimo.
+- [x] Implementar e executar o fluxo E2E mínimo.
 - [x] Avaliar e documentar MSI/NSIS e estratégia WebView2 offline.
 - [x] Gerar build release Windows x64 e instaladores padrão/offline.
 - [ ] Testar instalação em máquina Windows limpa sem toolchain.
@@ -249,6 +249,7 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 | Formato final `.projectflow` | Antes da Fase 6 | `import-export.md` e ADR se necessário |
 | Bundle WebView2 e instalador offline | Resolvida na Fase 7 | ADR 017 — NSIS padrão + variante offline |
 | Política de atualização sem chaves | Resolvida na Fase 7 | ADR 018 — consulta manual e instalação externa |
+| Automação E2E | Resolvida em camadas na Fase 7 | ADR 019 — jornada da aplicação + testes nativos; janela Tauri em diagnóstico |
 
 ## Histórico de evolução
 
@@ -742,6 +743,51 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Ambos informam versão `0.1.1`; os hashes foram revalidados e a ausência de
   assinatura Authenticode permanece documentada.
 - Nenhum commit, tag, push ou release remoto foi executado pelo agente.
+
+### 1º de setembro de 2026 — Fluxo E2E mínimo em camadas
+
+- O runner oficial foi reavaliado sem incorporar a resolução com 15 alertas npm
+  altos. O driver externo, o provider incorporado e uma conexão CDP também foram
+  ensaiados no executável real.
+- O WebView2 151 falhou ao criar a janela automatizada com
+  `HRESULT 0x800700AA`, regressão registrada upstream para versões 150+. Não foi
+  aplicado downgrade global, patch não publicado ou enfraquecimento do gate.
+- `npm run test:e2e` passou a combinar uma jornada completa de React/estado/
+  domínio, com repositório isolado, e a suíte Rust real de SQLite, migrations,
+  transações e portabilidade.
+- A jornada cria projeto, cinco tarefas com subtarefa e A → B → C, comprova
+  propagação, alterna Tabela/Kanban/Gantt, duplica árvore, exporta, esvazia,
+  importa e compara o resultado semântico.
+- O harness desktop foi preservado como `npm run test:e2e:desktop`, isolado em
+  `.local/e2e/`, mas permanece diagnóstico e fora do CI até a correção upstream.
+- O gate em camadas foi adicionado ao quality gate Windows. O ADR 019 registra
+  os limites de cobertura e a decisão de segurança.
+- Gates locais aprovados: 92 testes TypeScript/React regulares, 1 jornada E2E,
+  2 testes de desempenho, 30 testes Rust/SQLite, lint, typecheck, Cargo
+  fmt/check/Clippy, auditoria npm sem vulnerabilidades e build NSIS de produção.
+- Commit: `não commitado`; nenhum push ou release foi executado pelo agente.
+
+### 1º de setembro de 2026 — Auditoria final de UX e acessibilidade
+
+- A auditoria consolidada foi registrada em
+  [ux-accessibility.md](ux-accessibility.md), com roteiro reproduzível para a VM.
+- A aplicação recebeu link de salto, projeto atual identificável, legenda da
+  Tabela e estados expandidos para hierarquia e detalhes.
+- Menus fecham com `Esc`; diálogos prendem o foco, começam em uma ação segura e
+  restauram o foco ao acionador. A restauração destrutiva inicia em **Cancelar**.
+- Kanban mantém alternativa de teclado ao arrastar, anuncia salvamento e exibe
+  datas localizadas. Textos densos ganharam tamanho e contraste, com suporte a
+  cores forçadas e redução de movimento.
+- A janela Tauri recompilada teve sua árvore de acessibilidade inspecionada. O
+  layout também foi verificado em 1024 × 720 e 960 px sem overflow horizontal
+  global; a Tabela conserva sua rolagem interna deliberada.
+- Testes regulares passaram de 92 para 94, com cobertura específica dos
+  comportamentos de foco e semântica.
+- Passaram também a jornada E2E, 30 testes Rust/SQLite, 2 testes de desempenho,
+  lint, typecheck, build web, Cargo fmt/check/Clippy, auditoria npm sem
+  vulnerabilidades e empacotamento NSIS padrão. O `.exe` compartilhado de teste
+  foi recompilado por último.
+- Commit: `não commitado`; nenhum push, tag ou release foi executado pelo agente.
 
 ## Regras permanentes de acompanhamento
 

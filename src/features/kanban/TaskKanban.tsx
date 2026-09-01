@@ -42,9 +42,15 @@ function taskPath(
 
 function taskDates(task: Task): string {
   if (task.startDate === null || task.endDate === null) return "Sem cronograma";
+  const formatDate = (date: string): string => {
+    const [year, month, day] = date.split("-");
+    return year === undefined || month === undefined || day === undefined
+      ? date
+      : `${day}/${month}/${year}`;
+  };
   return task.startDate === task.endDate
-    ? task.startDate
-    : `${task.startDate} → ${task.endDate}`;
+    ? formatDate(task.startDate)
+    : `${formatDate(task.startDate)} → ${formatDate(task.endDate)}`;
 }
 
 export function TaskKanban({
@@ -72,8 +78,11 @@ export function TaskKanban({
   const changeStatus = async (task: Task, status: TaskStatus): Promise<void> => {
     if (disabled || task.status === status) return;
     setSavingTaskId(task.id);
-    await onSave({ ...task, status });
-    setSavingTaskId(null);
+    try {
+      await onSave({ ...task, status });
+    } finally {
+      setSavingTaskId(null);
+    }
   };
 
   const dropTask = (event: DragEvent<HTMLElement>, status: TaskStatus): void => {
@@ -130,6 +139,7 @@ export function TaskKanban({
                       <article
                         key={task.id}
                         className={`kanban-card${draggedTaskId === task.id ? " dragging" : ""}`}
+                        aria-busy={isSaving}
                         draggable={!disabled && !isSaving}
                         onDragStart={(event) => {
                           event.dataTransfer.effectAllowed = "move";
@@ -182,6 +192,7 @@ export function TaskKanban({
                             ))}
                           </select>
                         </label>
+                        {isSaving ? <span className="sr-only" role="status">Salvando status de {task.title}</span> : null}
                       </article>
                     );
                   })}

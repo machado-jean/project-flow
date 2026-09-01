@@ -1,30 +1,47 @@
 # Testes E2E
 
-O fluxo mínimo está definido no `AGENTS.md`: criar projeto, tarefas,
-subtarefas e cadeia A → B → C; propagar uma alteração; alternar views;
-duplicar; exportar; importar em workspace vazio e comparar o resultado.
+O fluxo mínimo definido no `AGENTS.md` é validado por um gate em duas camadas:
 
-## Estado na Fase 7
+```powershell
+npm run test:e2e
+```
 
-O caminho recomendado atualmente pela documentação oficial do Tauri é
-WebdriverIO com `@wdio/tauri-service` e o provider incorporado. A combinação
-publicada em 30/08/2026 (`@wdio/tauri-service` 1.3.0 e WebdriverIO 9.31.x) foi
-testada somente como resolução de dependências e removida: ela introduziu 15
-alertas npm de severidade alta em ferramentas de desenvolvimento.
+1. `test:e2e:application` percorre pela interface React a criação de projeto,
+   tarefas e subtarefa, cadeia A → B → C, propagação de datas, troca entre
+   Tabela/Kanban/Gantt, duplicação de árvore, exportação, workspace vazio,
+   importação e comparação semântica;
+2. `test:e2e:native` executa os testes Rust reais de SQLite, migrations,
+   transações, backup e pacotes `.projectflow`.
 
-Não executar `npm audit fix --force`: a correção proposta faz downgrade para
-uma linha incompatível. O projeto permanece sem os plugins WDIO e com auditoria
-limpa. A implementação E2E nativa deve ser retomada quando houver uma resolução
-compatível e sem esses alertas, sempre com:
+A primeira camada usa um repositório em memória dedicado ao teste. Isso permite
+que o cenário funcional seja determinístico e seguro, enquanto a segunda camada
+comprova separadamente a fronteira nativa e persistente. Ambas bloqueiam o CI.
 
-- feature Cargo exclusiva de E2E;
-- permissões Tauri exclusivas do build de teste;
-- banco isolado sob `.local/e2e/`;
-- nenhum plugin WebDriver no executável de produção;
-- limpeza determinística somente do banco E2E;
-- execução local e no CI Windows.
+## Diagnóstico da janela Tauri
 
-Fontes:
+O projeto preserva um harness experimental para dirigir o WebView2 real por CDP:
+
+```powershell
+npm run test:e2e:desktop
+```
+
+Ele compila um executável `debug` com a feature Cargo `e2e`, isola banco,
+backups, logs e artefatos em `.local/e2e/` e injeta caminhos determinísticos
+para os diálogos de exportação/importação. A feature não é ativada no build de
+produção.
+
+Esse comando é somente diagnóstico. No WebView2 151 deste host, assim como no
+relato upstream para versões 150+, a criação da janela automatizada falha com
+`HRESULT 0x800700AA` (“recurso solicitado em uso”). O problema ocorre tanto com
+o driver oficial quanto ao habilitar CDP e não é tratado com downgrade do
+runtime, patch não publicado ou alteração global do Windows.
+
+Quando a correção upstream chegar a uma versão estável de Tauri/Wry/WebView2, o
+harness deve ser revalidado antes de ser promovido novamente a gate obrigatório.
+
+Referências:
 
 - [Tauri — WebDriver](https://v2.tauri.app/develop/tests/webdriver/)
-- [WebdriverIO — Tauri plugin setup](https://webdriver.io/docs/desktop-testing/tauri/plugin-setup/)
+- [Regressão WebView2 150+](https://github.com/webdriverio/desktop-mobile/issues/542)
+- [Microsoft — flags do WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/webview-features-flags)
+- [Playwright — connectOverCDP](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)

@@ -27,6 +27,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "../../domain/tasks/task";
+import { ModalDialog } from "../../components/ModalDialog";
 
 interface TaskTableProps {
   readonly tasks: readonly Task[];
@@ -228,6 +229,8 @@ function TaskRow({
   const [dirty, setDirty] = useState(false);
   const [lagDrafts, setLagDrafts] = useState<Readonly<Record<string, number>>>({});
   const [showDetails, setShowDetails] = useState(false);
+  const detailsId = `task-details-${row.task.id}`;
+  const codeHelpId = `task-code-help-${row.task.id}`;
   const invalidParentIds = useMemo(() => collectTaskTreeIds(tasks, row.task.id), [row.task.id, tasks]);
   const dependencyTaskIds = new Set(dependencies.flatMap(({ predecessorId, successorId }) => [predecessorId, successorId]));
   const parentOptions = tasks.filter(
@@ -319,14 +322,14 @@ function TaskRow({
       <td className="selection-cell"><input type="checkbox" checked={selected} aria-label={`Selecionar ${row.task.title}`} onChange={(event) => { onSelect(event.target.checked); }} /></td>
       <td className="task-title-cell">
         <div className="task-title-line" style={{ paddingLeft: `${String(row.depth * 1.25)}rem` }}>
-          {row.hasChildren ? <button className="tree-toggle" type="button" aria-label={expanded ? "Recolher subtarefas" : "Expandir subtarefas"} onClick={onToggleExpanded}>{expanded ? "▾" : "▸"}</button> : <span className="tree-spacer" />}
+          {row.hasChildren ? <button className="tree-toggle" type="button" aria-label={expanded ? "Recolher subtarefas" : "Expandir subtarefas"} aria-expanded={expanded} onClick={onToggleExpanded}>{expanded ? "▾" : "▸"}</button> : <span className="tree-spacer" />}
           <span className="task-outline-number" aria-label={`Estrutura ${outlineNumber}`}>{outlineNumber}.</span>
           <input className="cell-input title-input" aria-label="Título da tarefa" value={titleWithoutMatchingOutline(draft.title, outlineNumber)} disabled={disabled} onChange={(event) => { update({ title: event.target.value }); }} />
           {row.hasChildren ? <span className="summary-badge">Resumo</span> : null}
         </div>
         <div className="task-row-links" style={{ paddingLeft: `${String(row.depth * 1.25 + 1.6)}rem` }}>
           <button className="inline-link" type="button" disabled={disabled || !canHaveSubtask} title={canHaveSubtask ? "Criar subtarefa" : "Remova as dependências desta tarefa antes de adicionar subtarefas"} onClick={onPrepareSubtask}>+ Subtarefa</button>
-          <button className="inline-link" type="button" onClick={() => { setShowDetails((visible) => !visible); }}>{showDetails ? "Ocultar detalhes" : "Detalhes"}</button>
+          <button className="inline-link" type="button" aria-expanded={showDetails} aria-controls={detailsId} onClick={() => { setShowDetails((visible) => !visible); }}>{showDetails ? "Ocultar detalhes" : "Detalhes"}</button>
         </div>
         {taskConflicts.map((conflict) => <p className="conflict-message" key={`${conflict.kind}-${conflict.requiredStartDate}`}>{conflict.message}</p>)}
       </td>
@@ -349,13 +352,13 @@ function TaskRow({
       <tr className="task-details-row">
         <td className="selection-cell" />
         <td colSpan={11}>
-          <div className="task-details" style={{ marginLeft: `${String(row.depth * 1.25)}rem` }}>
+          <div className="task-details" id={detailsId} style={{ marginLeft: `${String(row.depth * 1.25)}rem` }}>
             <label>
               <span className="detail-label">
                 Código
-                <span className="field-help" tabIndex={0} aria-label="Ajuda sobre o código visual" title="Identificador visual opcional, como DEV-01 ou 1.2. Ele não altera o UUID interno da tarefa.">
+                <span className="field-help" tabIndex={0} aria-label="Ajuda sobre o código visual" aria-describedby={codeHelpId} title="Identificador visual opcional, como DEV-01 ou 1.2. Ele não altera o UUID interno da tarefa.">
                   i
-                  <span className="field-help-text" role="tooltip">Identificador visual opcional, como DEV-01 ou 1.2. Ele não altera o UUID interno da tarefa.</span>
+                  <span className="field-help-text" id={codeHelpId} role="tooltip">Identificador visual opcional, como DEV-01 ou 1.2. Ele não altera o UUID interno da tarefa.</span>
                 </span>
               </span>
               <input aria-label="Código visual da tarefa" disabled={disabled} value={draft.code ?? ""} onChange={(event) => { update({ code: event.target.value || null }); }} />
@@ -471,6 +474,7 @@ export function TaskTable({
       {conflicts.length > 0 ? <div className="schedule-conflict-summary" role="status"><strong>{conflicts.length} {conflicts.length === 1 ? "conflito de agendamento" : "conflitos de agendamento"}</strong><span>Tarefas manuais foram preservadas. Abra a linha correspondente para revisar a data mínima indicada.</span></div> : null}
       <div className="table-scroll">
         <table className="task-table">
+          <caption className="sr-only">Tarefas do projeto com cronograma, predecessoras e ações de edição</caption>
           <thead><tr><th className="selection-cell"><span className="sr-only">Selecionar</span></th><th>Tarefa</th><th>Predecessoras</th><th>Status</th><th>Prioridade</th><th>Progresso</th><th>Início</th><th>Fim</th><th>Duração</th><th>Responsável</th><th>Tags</th><th>Ações</th></tr></thead>
           <tbody>
             {visibleTasks.length === 0 ? <tr><td className="empty-table" colSpan={12}><strong>{tasks.length === 0 ? "Nenhuma tarefa ainda." : "Nenhuma tarefa corresponde aos filtros."}</strong><span>{tasks.length === 0 ? "Use o campo “Nova tarefa” para começar." : "Limpe ou ajuste os filtros para recuperar as linhas."}</span></td></tr> : visibleTasks.map((row) => {
@@ -482,11 +486,17 @@ export function TaskTable({
         </table>
       </div>
       {templateSource === null ? null : (
-        <div className="dialog-backdrop" role="presentation">
-          <section className="template-dialog" role="dialog" aria-modal="true" aria-labelledby="template-dialog-title">
+        <ModalDialog
+          className="template-dialog"
+          backdropClassName="dialog-backdrop"
+          labelledBy="template-dialog-title"
+          describedBy="template-dialog-description"
+          closeDisabled={disabled}
+          onClose={() => { setTemplateSource(null); }}
+        >
             <div>
               <h2 id="template-dialog-title">Salvar árvore como template</h2>
-              <p>“{templateSource.title}” e suas subtarefas ficarão disponíveis em todo o workspace.</p>
+              <p id="template-dialog-description">“{templateSource.title}” e suas subtarefas ficarão disponíveis em todo o workspace.</p>
             </div>
             <form onSubmit={(event) => { void saveTemplate(event); }}>
               <label>Nome<input required autoFocus value={templateName} disabled={disabled} onChange={(event) => { setTemplateName(event.target.value); }} /></label>
@@ -496,8 +506,7 @@ export function TaskTable({
                 <button className="primary-button" type="submit" disabled={disabled}>Salvar template</button>
               </div>
             </form>
-          </section>
-        </div>
+        </ModalDialog>
       )}
     </section>
   );

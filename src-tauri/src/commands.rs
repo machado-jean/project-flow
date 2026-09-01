@@ -198,6 +198,48 @@ fn portability_error(context: &str, error: String) -> String {
     error
 }
 
+#[cfg(feature = "e2e")]
+fn e2e_path(variable: &str) -> Option<PathBuf> {
+    std::env::var_os(variable)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+fn workspace_export_destination(app: &AppHandle) -> Result<Option<PathBuf>, String> {
+    #[cfg(feature = "e2e")]
+    if let Some(destination) = e2e_path("PROJECTFLOW_E2E_EXPORT_PATH") {
+        return Ok(Some(with_extension(destination, "projectflow")));
+    }
+
+    app.dialog()
+        .file()
+        .set_title("Exportar workspace do ProjectFlow")
+        .set_file_name(format!(
+            "projectflow-workspace-{}.projectflow",
+            chrono::Local::now().format("%Y%m%d")
+        ))
+        .add_filter("Pacote ProjectFlow", &["projectflow"])
+        .blocking_save_file()
+        .map(file_path)
+        .transpose()
+        .map(|path| path.map(|value| with_extension(value, "projectflow")))
+}
+
+fn import_package_path(app: &AppHandle) -> Result<Option<PathBuf>, String> {
+    #[cfg(feature = "e2e")]
+    if let Some(path) = e2e_path("PROJECTFLOW_E2E_IMPORT_PATH") {
+        return Ok(Some(path));
+    }
+
+    app.dialog()
+        .file()
+        .set_title("Importar pacote do ProjectFlow")
+        .add_filter("Pacote ProjectFlow", &["projectflow"])
+        .blocking_pick_file()
+        .map(file_path)
+        .transpose()
+}
+
 #[tauri::command]
 pub async fn export_project(
     app: AppHandle,
@@ -233,20 +275,9 @@ pub async fn export_workspace(
     app: AppHandle,
     db_instances: State<'_, DbInstances>,
 ) -> Result<Option<ExportResult>, String> {
-    let selected = app
-        .dialog()
-        .file()
-        .set_title("Exportar workspace do ProjectFlow")
-        .set_file_name(format!(
-            "projectflow-workspace-{}.projectflow",
-            chrono::Local::now().format("%Y%m%d")
-        ))
-        .add_filter("Pacote ProjectFlow", &["projectflow"])
-        .blocking_save_file();
-    let Some(selected) = selected else {
+    let Some(destination) = workspace_export_destination(&app)? else {
         return Ok(None);
     };
-    let destination = with_extension(file_path(selected)?, "projectflow");
     let pool = sqlite_pool(&db_instances).await?;
     portability::export_workspace(&pool, &destination, &portability_staging_dir(&app)?)
         .await
@@ -259,16 +290,9 @@ pub async fn choose_import_package(
     app: AppHandle,
     db_instances: State<'_, DbInstances>,
 ) -> Result<Option<ImportPackagePreview>, String> {
-    let selected = app
-        .dialog()
-        .file()
-        .set_title("Importar pacote do ProjectFlow")
-        .add_filter("Pacote ProjectFlow", &["projectflow"])
-        .blocking_pick_file();
-    let Some(selected) = selected else {
+    let Some(path) = import_package_path(&app)? else {
         return Ok(None);
     };
-    let path = file_path(selected)?;
     let pool = sqlite_pool(&db_instances).await?;
     portability::inspect_package(&pool, &path, &portability_staging_dir(&app)?)
         .await

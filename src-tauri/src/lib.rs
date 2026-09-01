@@ -9,9 +9,26 @@ use migration_compatibility::{DevelopmentDatabaseOutcome, MigrationCompatibility
 use tauri::Manager;
 use tauri_plugin_log::log::{info, LevelFilter};
 
+#[cfg(feature = "e2e")]
+use tauri_plugin_log::{Target, TargetKind};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let log_builder = tauri_plugin_log::Builder::new().level(LevelFilter::Info);
+    #[cfg(feature = "e2e")]
+    let log_builder = log_builder.clear_targets().targets([
+        Target::new(TargetKind::Stdout),
+        Target::new(TargetKind::Folder {
+            path: std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("..")
+                .join(".local")
+                .join("e2e")
+                .join("logs"),
+            file_name: Some("ProjectFlow-e2e".into()),
+        }),
+    ]);
+
+    let builder = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::database_url,
             commands::load_workspace,
@@ -38,17 +55,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(migration_compatibility::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(LevelFilter::Info)
-                .build(),
-        )
+        .plugin(log_builder.build())
         .plugin({
             let database_url = database_url();
             tauri_plugin_sql::Builder::default()
                 .add_migrations(&database_url, migrations())
                 .build()
-        })
+        });
+    builder
         .setup(|app| {
             match app.state::<DevelopmentDatabaseOutcome>().inner() {
                 DevelopmentDatabaseOutcome::NotApplicable => {}

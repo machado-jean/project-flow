@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { ModalDialog } from "../../components/ModalDialog";
 import type {
   ImportPackagePreview,
   ProjectImportMode,
@@ -183,14 +184,19 @@ export function PortabilityPanel({
       {error !== null ? <p className="portability-error" role="alert">{error}</p> : null}
 
       {importPreview !== null ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="portability-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
+        <ModalDialog
+          className="portability-modal"
+          labelledBy="import-title"
+          describedBy="import-description"
+          closeDisabled={busy}
+          onClose={() => { setImportPreview(null); }}
+        >
             <header>
               <div>
                 <h2 id="import-title">Escolher conteúdo para importar</h2>
-                <p>{packageSummary(importPreview)} · schema {importPreview.schemaVersion}</p>
+                <p id="import-description">{packageSummary(importPreview)} · schema {importPreview.schemaVersion}</p>
               </div>
-              <button type="button" aria-label="Fechar importação" onClick={() => { setImportPreview(null); }}>×</button>
+              <button type="button" data-dialog-initial-focus aria-label="Fechar importação" disabled={busy} onClick={() => { setImportPreview(null); }}>×</button>
             </header>
             <div className="import-list">
               <h3>Projetos</h3>
@@ -244,26 +250,30 @@ export function PortabilityPanel({
               <button type="button" className="secondary-button" onClick={() => { setImportPreview(null); }}>Cancelar</button>
               <button type="button" className="primary-button" disabled={!hasImportSelection || busy} onClick={applyImport}>Importar seleção</button>
             </footer>
-          </section>
-        </div>
+        </ModalDialog>
       ) : null}
 
       {restorePreview !== null ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="portability-modal compact" role="alertdialog" aria-modal="true" aria-labelledby="restore-title">
+        <ModalDialog
+          className="portability-modal compact"
+          role="alertdialog"
+          labelledBy="restore-title"
+          describedBy="restore-description"
+          closeDisabled={busy}
+          onClose={() => { setRestorePreview(null); }}
+        >
             <header>
               <div>
                 <h2 id="restore-title">Restaurar workspace completo?</h2>
-                <p>O backup contém {packageSummary(restorePreview)}.</p>
+                <p id="restore-description">O backup contém {packageSummary(restorePreview)}.</p>
               </div>
             </header>
             <p className="import-warning">A restauração substitui todo o workspace atual. Antes disso, o ProjectFlow cria outro backup de segurança.</p>
             <footer>
-              <button type="button" className="secondary-button" onClick={() => { setRestorePreview(null); }}>Cancelar</button>
+              <button type="button" className="secondary-button" data-dialog-initial-focus disabled={busy} onClick={() => { setRestorePreview(null); }}>Cancelar</button>
               <button type="button" className="danger-button" disabled={busy} onClick={applyRestore}>Restaurar tudo</button>
             </footer>
-          </section>
-        </div>
+        </ModalDialog>
       ) : null}
     </>
   );

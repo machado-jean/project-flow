@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM"],
+    "noUncheckedIndexedAccess": true,
+    "types": ["@testing-library/jest-dom/vitest", "node", "vitest/globals"]
+  },
+  "include": ["src/vite-env.d.ts", "tests/e2e/**/*.ts", "tests/e2e/**/*.tsx"]
+}
