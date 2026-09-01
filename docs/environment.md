@@ -310,3 +310,25 @@ suíte nativa dentro da jornada E2E. O teste de restauração passou cinco vezes
 seguidas e o gate equivalente ao CI aprovou 94 testes TypeScript/React, 30
 testes Rust/SQLite, 2 testes de desempenho e 1 jornada E2E. Nenhuma ferramenta
 global foi instalada ou atualizada.
+
+Para a `v0.1.3`, os plugins oficiais Tauri Updater 2.10.1 e Process 2.3.1 foram
+adicionados somente ao projeto, com versões exatas nos manifests e lockfiles.
+Nenhuma ferramenta global foi instalada. O updater usa `latest.json` no GitHub
+Releases, assinatura Minisign obrigatória e instalação NSIS `passive`.
+
+A chave privada foi gerada em `.local/secrets/projectflow-updater.key`, área
+ignorada pelo Git; seu conteúdo não foi registrado na documentação. A chave
+pública está incorporada em `tauri.conf.json`. Antes da publicação, a chave
+privada precisa ser copiada para armazenamento seguro e para um GitHub Secret.
+
+Artefatos locais da `v0.1.3` em `.local/distribution/v0.1.3/`:
+
+| Arquivo | Tamanho | SHA-256 |
+| --- | ---: | --- |
+| `ProjectFlow-Windows-x64-Setup.exe` | 4.977.832 bytes | `AE06B8B1E3A73582C4F391CF7CA2E43679338B93B8C1EB8CC707DDFC98B04AF5` |
+| `ProjectFlow-Windows-x64-Offline-Setup.exe` | 266.799.404 bytes | `6E8795451F105B7C94A6FF36A56C951513552B93AA326DE9D6DC3921A32BCA2C` |
+
+Ambos possuem uma assinatura `.sig` do updater, mas continuam sem Authenticode.
+O `latest.json` referencia o instalador padrão e incorpora sua assinatura. O CI
+usa `--no-sign` para validar o NSIS sem expor segredos; builds de release exigem
+`TAURI_SIGNING_PRIVATE_KEY`.

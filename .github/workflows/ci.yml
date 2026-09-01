@@ -63,4 +63,6 @@ jobs:
         run: npm run test:e2e:application
 
       - name: Build Windows installer
-        run: npm run tauri:build:installer
+        # Release builds are signed outside this read-only quality gate. The CI
+        # still validates the complete NSIS bundle without requiring secrets.
+        run: npm run tauri:build:installer:ci

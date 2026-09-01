@@ -48,18 +48,20 @@ de administrador no fluxo normal.
 
 ## Atualização e preservação de dados
 
+Quando o instalador gráfico encontra uma versão anterior, a interface em
+português identifica explicitamente **Atualizar sem desinstalar (recomendado)**
+como a opção que preserva a instalação. Quando encontra a mesma versão, oferece
+**Reparar instalação**. Downgrades continuam bloqueados.
+
 Use **Ajuda > Verificar atualizações**. A consulta ocorre somente nesse momento
-e compara a versão instalada com a última release estável publicada. Quando
-houver uma versão superior, **Baixar atualização** abre o instalador padrão no
-navegador; a alternativa offline também está disponível.
+e compara a versão instalada com o `latest.json` da última release estável.
+Quando houver uma versão superior, **Baixar e instalar atualização** baixa o
+NSIS, verifica sua assinatura criptográfica e inicia a instalação em modo
+passivo. O ProjectFlow fecha durante a troca dos binários e reinicia ao final.
 
-O ProjectFlow não baixa nem executa o instalador internamente. Depois do
-download, feche o aplicativo e execute manualmente o arquivo obtido.
-
-A `v0.1.0` é anterior ao verificador e a `v0.1.1` foi a primeira versão com
-essa opção. Para comprovar o ciclo completo, instale a `v0.1.1`, publique a
-`v0.1.2` mantendo os mesmos nomes dos assets e execute **Ajuda > Verificar
-atualizações**.
+A alternativa offline continua abrindo o download manual no navegador, pois o
+updater usa o pacote padrão menor. O uso normal do aplicativo não depende de
+internet nem de nenhum runtime de desenvolvimento.
 
 Feche o aplicativo e execute o instalador de versão mais recente. O instalador
 atualiza os binários; o banco, backups e logs permanecem no perfil do usuário e
@@ -73,6 +75,11 @@ No ambiente atual, o banco de produção é resolvido pelo Tauri sob:
 
 Antes de uma atualização importante, use **Arquivo > Backup e portabilidade**
 para criar um backup manual em um local conhecido.
+
+O arquivo privado que assina atualizações não integra o aplicativo, o
+instalador ou o Git. Apenas a chave pública de validação é distribuída. A chave
+privada permanente deve ser mantida fora do repositório e configurada como
+segredo no ambiente que gera releases.
 
 ## Desinstalação
 

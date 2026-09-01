@@ -9,6 +9,8 @@
     "core:default",
     "sql:default",
     "log:default",
+    "updater:default",
+    "process:allow-restart",
     {
       "identifier": "opener:allow-open-url",
       "allow": [

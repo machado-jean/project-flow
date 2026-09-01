@@ -80,7 +80,8 @@ export function requireDateOnly(value: string, field: string, label: string): st
 }
 
 export function requireIsoTimestamp(value: string, field: string): string {
-  if (!value.endsWith("Z") || Number.isNaN(Date.parse(value))) {
+  const parsed = Date.parse(value);
+  if ((!value.endsWith("Z") && !value.endsWith("+00:00")) || Number.isNaN(parsed)) {
     throw new DomainValidationError(
       "invalid_timestamp",
       field,
@@ -88,6 +89,5 @@ export function requireIsoTimestamp(value: string, field: string): string {
     );
   }
 
-  return value;
+  return value.endsWith("Z") ? value : new Date(parsed).toISOString();
 }
-

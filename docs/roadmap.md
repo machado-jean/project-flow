@@ -32,12 +32,12 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | Item | Estado |
 | --- | --- |
 | Etapa do produto | Hardening e distribuição Windows em andamento |
-| Fase ativa | Fase 7 — E2E e auditoria final de UX/acessibilidade concluídos localmente |
+| Fase ativa | Fase 7 — updater passivo v0.1.3 pronto para auditoria em VM |
 | Próxima fase | Validar instalação, atualização, preservação de dados e operação offline em máquina limpa |
-| Versão da aplicação | `0.1.2` |
+| Versão da aplicação | `0.1.3` |
 | Versão do schema SQLite | `4` |
 | Último commit estável | `87352f4` — `Add layered E2E coverage and finalize UX accessibility audit` |
-| Branch de trabalho | `main`, preparando os artefatos locais da `v0.1.2` |
+| Branch de trabalho | `main`, preparando os artefatos locais da `v0.1.3` |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -805,6 +805,25 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 - Os dois instaladores `v0.1.2`, hashes e notas de release estão em
   `.local/distribution/v0.1.2/`. Nenhum commit, push, tag ou release remoto foi
   executado pelo agente.
+
+### 1º de setembro de 2026 — Compatibilidade UTC e manutenção do instalador
+
+- A validação do domínio passou a aceitar e normalizar o offset UTC `+00:00`
+  produzido por versões anteriores da camada Rust, além do formato canônico
+  terminado em `Z`.
+- Novos timestamps nativos e manifests são gerados diretamente com `Z`. Outros
+  fusos continuam rejeitados porque timestamps de auditoria são UTC.
+- O instalador em português agora apresenta **Reparar instalação** para a mesma
+  versão e identifica **Atualizar sem desinstalar (recomendado)** ao encontrar
+  uma versão anterior; downgrade permanece bloqueado.
+- O updater oficial Tauri foi incorporado em modo `passive`, com consulta manual,
+  download, verificação de assinatura, instalação e reinício. `latest.json` usa
+  o instalador padrão permanente da release.
+- A chave privada permanente foi gerada em `.local/secrets/`, fora do Git, e a
+  chave pública foi incorporada ao aplicativo. A cópia externa segura da chave
+  privada continua obrigatória antes da publicação.
+- Os instaladores padrão e offline, suas assinaturas, `latest.json`, hashes e
+  notas da `v0.1.3` foram gerados em `.local/distribution/v0.1.3/`.
 
 ## Regras permanentes de acompanhamento
 

@@ -1,25 +1,31 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 import { useState } from "react";
 
 import { version as appVersion } from "../../package.json";
 import {
-  checkLatestRelease,
   PROJECTFLOW_OFFLINE_INSTALLER_URL,
-  PROJECTFLOW_STANDARD_INSTALLER_URL,
-  type ReleaseAvailability,
 } from "../domain/updates/release";
 
 export function WorkspaceHelpMenu() {
   const [checking, setChecking] = useState(false);
-  const [availability, setAvailability] = useState<ReleaseAvailability | null>(null);
+  const [installing, setInstalling] = useState(false);
+  const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
+  const [checkedCurrent, setCheckedCurrent] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const checkForUpdates = async (): Promise<void> => {
     setChecking(true);
-    setAvailability(null);
+    setAvailableUpdate(null);
+    setCheckedCurrent(false);
+    setProgress(null);
     setError(null);
     try {
-      setAvailability(await checkLatestRelease(appVersion));
+      const update = await check({ timeout: 15_000 });
+      setAvailableUpdate(update);
+      setCheckedCurrent(update === null);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -28,6 +34,38 @@ export function WorkspaceHelpMenu() {
       );
     } finally {
       setChecking(false);
+    }
+  };
+
+  const installUpdate = async (): Promise<void> => {
+    if (availableUpdate === null) return;
+    setInstalling(true);
+    setError(null);
+    let downloaded = 0;
+    let total: number | undefined;
+    const onProgress = (event: DownloadEvent): void => {
+      if (event.event === "Started") {
+        total = event.data.contentLength;
+        setProgress("Baixando atualização…");
+      } else if (event.event === "Progress") {
+        downloaded += event.data.chunkLength;
+        setProgress(total === undefined || total === 0
+          ? "Baixando atualização…"
+          : `Baixando atualização… ${String(Math.min(100, Math.round((downloaded / total) * 100)))}%`);
+      } else {
+        setProgress("Download concluído. Preparando instalação…");
+      }
+    };
+    try {
+      await availableUpdate.downloadAndInstall(onProgress);
+      setProgress("Atualização instalada. Reiniciando o ProjectFlow…");
+      await relaunch();
+    } catch (reason) {
+      setError(reason instanceof Error
+        ? `Não foi possível instalar a atualização: ${reason.message}`
+        : "Não foi possível instalar a atualização.");
+      setProgress(null);
+      setInstalling(false);
     }
   };
 
@@ -55,29 +93,24 @@ export function WorkspaceHelpMenu() {
             {checking ? "Verificando…" : "Verificar atualizações"}
           </button>
           <div className="update-check-result" aria-live="polite">
-            {availability === null ? null : availability.updateAvailable ? (
+            {availableUpdate === null ? null : (
               <>
-                <p>Versão {availability.latestVersion} disponível.</p>
-                <button type="button" onClick={() => { void openInstaller(PROJECTFLOW_STANDARD_INSTALLER_URL); }}>
-                  Baixar atualização
+                <p>Versão {availableUpdate.version} disponível.</p>
+                <button type="button" disabled={installing} onClick={() => { void installUpdate(); }}>
+                  {installing ? "Atualizando…" : "Baixar e instalar atualização"}
                 </button>
                 <button className="text-update-button" type="button" onClick={() => { void openInstaller(PROJECTFLOW_OFFLINE_INSTALLER_URL); }}>
                   Baixar instalador offline
                 </button>
               </>
-            ) : availability.currentVersion === availability.latestVersion ? (
-              <p>Você já está na versão mais recente ({availability.currentVersion}).</p>
-            ) : (
-              <p>
-                Esta compilação ({availability.currentVersion}) é mais recente que a release
-                publicada ({availability.latestVersion}).
-              </p>
             )}
+            {checkedCurrent ? <p>Você já está na versão mais recente ({appVersion}).</p> : null}
+            {progress === null ? null : <p>{progress}</p>}
             {error === null ? null : <p className="update-check-error" role="alert">{error}</p>}
           </div>
         </section>
         <hr />
-        <small>Operação local e offline; a atualização é baixada pelo navegador.</small>
+        <small>Operação local e offline; atualizações só são consultadas quando solicitadas.</small>
         <small>Licenças de terceiros: THIRD_PARTY_NOTICES.md</small>
       </div>
     </details>

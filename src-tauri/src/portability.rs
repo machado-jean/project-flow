@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use chrono::Utc;
+use chrono::{SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use sqlx::{sqlite::SqliteConnectOptions, Connection, SqliteConnection, SqlitePool};
@@ -345,7 +345,7 @@ pub async fn import_package(
         .begin()
         .await
         .map_err(|error| format!("Falha ao iniciar a importação: {error}"))?;
-    let now = Utc::now().to_rfc3339();
+    let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
     let mut next_position = local
         .projects
         .iter()
@@ -721,7 +721,7 @@ fn build_manifest(
         schema_version: DATABASE_SCHEMA_VERSION,
         app_version: env!("CARGO_PKG_VERSION").into(),
         export_type,
-        exported_at: Utc::now().to_rfc3339(),
+        exported_at: Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true),
         data_sha256: sha256_file(database_path)?,
         data_size,
         projects: project_catalog(workspace),

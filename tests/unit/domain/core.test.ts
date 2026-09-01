@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DEFAULT_CALENDAR_ID } from "../../../src/domain/calendars/calendar";
 import { validateProject, type Project } from "../../../src/domain/projects/project";
+import { requireIsoTimestamp } from "../../../src/domain/shared/validation";
 import { assertValidParentAssignment, flattenVisibleTasks } from "../../../src/domain/tasks/hierarchy";
 import { validateTask, type Task } from "../../../src/domain/tasks/task";
 
@@ -11,6 +12,21 @@ const TASK_A_ID = "20000000-0000-4000-8000-000000000001";
 const TASK_B_ID = "20000000-0000-4000-8000-000000000002";
 const TASK_C_ID = "20000000-0000-4000-8000-000000000003";
 const NOW = "2026-08-27T15:00:00.000Z";
+
+describe("timestamps de interoperabilidade", () => {
+  it("aceita e normaliza o offset UTC produzido pelo Rust", () => {
+    expect(requireIsoTimestamp("2026-09-01T12:30:00+00:00", "updatedAt")).toBe(
+      "2026-09-01T12:30:00.000Z",
+    );
+  });
+
+  it("preserva timestamps UTC canônicos e rejeita outros fusos", () => {
+    expect(requireIsoTimestamp(NOW, "updatedAt")).toBe(NOW);
+    expect(() => requireIsoTimestamp("2026-09-01T09:30:00-03:00", "updatedAt")).toThrow(
+      "timestamp UTC válido",
+    );
+  });
+});
 
 function project(overrides: Partial<Project> = {}): Project {
   return {

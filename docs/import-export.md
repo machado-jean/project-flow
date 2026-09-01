@@ -37,6 +37,12 @@ Limites da versão 1:
 
 ## Importação seletiva
 
+Timestamps de auditoria aceitam as duas representações UTC RFC 3339 produzidas
+pelas camadas do ProjectFlow: sufixo `Z` e offset `+00:00`. Valores com
+`+00:00` são normalizados para `Z` ao entrarem no domínio. Novas exportações e
+registros criados pela camada nativa usam diretamente o formato canônico com
+`Z`; datas de cronograma continuam independentes, em `YYYY-MM-DD`.
+
 O pacote inteiro é validado antes da tela de escolha. Cada projeto oferece:
 
 - **Importar** quando o UUID ainda não existe: preserva os UUIDs originais;
