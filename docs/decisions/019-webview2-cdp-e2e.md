@@ -42,6 +42,10 @@ diagnóstico e não bloqueante até a correção upstream. Sua feature Cargo `e2
 - abre a porta CDP apenas na configuração gerada em `.local/e2e/`;
 - não é ativada no executável ou nos instaladores de produção.
 
+Antes de voltar ao gate, o harness deverá adotar User Data Folder e porta CDP
+exclusivos por execução, aguardar o encerramento dos processos WebView2 e passar
+pela matriz descrita em [Diretrizes de validação do WebView2](../webview2-testing.md).
+
 ## Alternativas rejeitadas
 
 - **Usar o runner vulnerável:** contraria a política de dependências e mantém a
@@ -70,4 +74,7 @@ diagnóstico e não bloqueante até a correção upstream. Sua feature Cargo `e2
 - [Tauri — WebDriver](https://v2.tauri.app/develop/tests/webdriver/)
 - [Regressão WebView2 150+](https://github.com/webdriverio/desktop-mobile/issues/542)
 - [Microsoft — flags do WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/webview-features-flags)
+- [Microsoft — distribuição do WebView2](https://learn.microsoft.com/microsoft-edge/webview2/concepts/distribution)
+- [Microsoft — User Data Folder](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder)
+- [Microsoft — Evergreen versus Fixed Version](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/evergreen-vs-fixed-version)
 - [Playwright — connectOverCDP](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)

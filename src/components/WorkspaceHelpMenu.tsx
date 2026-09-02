@@ -1,12 +1,13 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { version as appVersion } from "../../package.json";
 import {
   PROJECTFLOW_OFFLINE_INSTALLER_URL,
 } from "../domain/updates/release";
+import { ModalDialog } from "./ModalDialog";
 
 export function WorkspaceHelpMenu() {
   const [checking, setChecking] = useState(false);
@@ -15,6 +16,18 @@ export function WorkspaceHelpMenu() {
   const [checkedCurrent, setCheckedCurrent] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  useEffect(() => {
+    const openShortcuts = (event: KeyboardEvent): void => {
+      if (event.ctrlKey && event.key === "/") {
+        event.preventDefault();
+        setShowShortcuts(true);
+      }
+    };
+    document.addEventListener("keydown", openShortcuts);
+    return () => { document.removeEventListener("keydown", openShortcuts); };
+  }, []);
 
   const checkForUpdates = async (): Promise<void> => {
     setChecking(true);
@@ -78,6 +91,7 @@ export function WorkspaceHelpMenu() {
   };
 
   return (
+    <>
     <details className="workspace-menu help-menu" name="workspace-menu">
       <summary>Ajuda</summary>
       <div className="workspace-menu-popover help-menu-popover">
@@ -85,6 +99,15 @@ export function WorkspaceHelpMenu() {
         <p>A Tabela é a visualização principal para editar tarefas e dependências.</p>
         <p>Kanban e Gantt usam as mesmas tarefas e refletem as alterações salvas.</p>
         <p>Feriados municipais podem ser criados manualmente no menu Calendário.</p>
+        <button
+          className="shortcuts-menu-button"
+          type="button"
+          aria-keyshortcuts="Control+/"
+          onClick={() => { setShowShortcuts(true); }}
+        >
+          Atalhos de teclado
+          <kbd>Ctrl + /</kbd>
+        </button>
         <hr />
         <section className="update-check" aria-labelledby="update-check-title">
           <strong id="update-check-title">Atualizações</strong>
@@ -114,5 +137,32 @@ export function WorkspaceHelpMenu() {
         <small>Licenças de terceiros: THIRD_PARTY_NOTICES.md</small>
       </div>
     </details>
+    {showShortcuts ? (
+      <ModalDialog
+        className="portability-modal compact shortcuts-dialog"
+        labelledBy="keyboard-shortcuts-title"
+        describedBy="keyboard-shortcuts-description"
+        onClose={() => { setShowShortcuts(false); }}
+      >
+        <header>
+          <div>
+            <h2 id="keyboard-shortcuts-title">Atalhos de teclado</h2>
+            <p id="keyboard-shortcuts-description">Navegue pelo ProjectFlow sem tirar as mãos do teclado.</p>
+          </div>
+          <button type="button" aria-label="Fechar atalhos" onClick={() => { setShowShortcuts(false); }}>×</button>
+        </header>
+        <dl className="shortcut-list">
+          <div><dt><kbd>Ctrl + /</kbd></dt><dd>Abrir esta lista de atalhos</dd></div>
+          <div><dt><kbd>Esc</kbd></dt><dd>Fechar menu, diálogo ou detalhes da tarefa</dd></div>
+          <div><dt><kbd>Tab</kbd></dt><dd>Avançar entre os controles</dd></div>
+          <div><dt><kbd>Shift + Tab</kbd></dt><dd>Voltar ao controle anterior</dd></div>
+          <div><dt><kbd>Enter</kbd> / <kbd>Espaço</kbd></dt><dd>Ativar o botão ou controle em foco</dd></div>
+          <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Alternar entre Tabela, Kanban e Gantt</dd></div>
+          <div><dt><kbd>Home</kbd> / <kbd>End</kbd></dt><dd>Ir para a primeira ou última visualização</dd></div>
+        </dl>
+        <footer><button type="button" data-dialog-initial-focus onClick={() => { setShowShortcuts(false); }}>Fechar</button></footer>
+      </ModalDialog>
+    ) : null}
+    </>
   );
 }

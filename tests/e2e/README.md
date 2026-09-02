@@ -39,9 +39,16 @@ runtime, patch não publicado ou alteração global do Windows.
 Quando a correção upstream chegar a uma versão estável de Tauri/Wry/WebView2, o
 harness deve ser revalidado antes de ser promovido novamente a gate obrigatório.
 
+O protocolo completo de isolamento, repetição, diagnóstico, validação em VM e
+critérios para promoção ao CI está em
+[Diretrizes de validação do WebView2](../../docs/webview2-testing.md). Ele deve
+ser seguido antes de alterar o runtime, as dependências ou o status deste gate.
+
 Referências:
 
 - [Tauri — WebDriver](https://v2.tauri.app/develop/tests/webdriver/)
 - [Regressão WebView2 150+](https://github.com/webdriverio/desktop-mobile/issues/542)
 - [Microsoft — flags do WebView2](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/webview-features-flags)
 - [Playwright — connectOverCDP](https://playwright.dev/docs/api/class-browsertype#browser-type-connect-over-cdp)
+- [Microsoft — User Data Folder](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder)
+- [Microsoft — Evergreen versus Fixed Version](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/evergreen-vs-fixed-version)

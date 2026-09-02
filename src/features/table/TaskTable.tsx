@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type SyntheticEvent } from "react";
 
 import type { Calendar } from "../../domain/calendars/calendar";
 import { isWorkingDay } from "../../domain/calendars/working-calendar";
@@ -229,6 +229,7 @@ function TaskRow({
   const [dirty, setDirty] = useState(false);
   const [lagDrafts, setLagDrafts] = useState<Readonly<Record<string, number>>>({});
   const [showDetails, setShowDetails] = useState(false);
+  const detailsButtonRef = useRef<HTMLButtonElement>(null);
   const detailsId = `task-details-${row.task.id}`;
   const codeHelpId = `task-code-help-${row.task.id}`;
   const invalidParentIds = useMemo(() => collectTaskTreeIds(tasks, row.task.id), [row.task.id, tasks]);
@@ -256,6 +257,14 @@ function TaskRow({
     [draft.startDate, draft.endDate].some(
       (date) => date !== null && !isWorkingDay(taskCalendar, date),
     );
+
+  const closeDetailsOnEscape = (event: KeyboardEvent<HTMLElement>): void => {
+    if (event.key !== "Escape" || !showDetails) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setShowDetails(false);
+    detailsButtonRef.current?.focus();
+  };
 
   const update = (patch: Partial<Task>): void => {
     setDraft((current) => ({ ...current, ...patch }));
@@ -329,7 +338,7 @@ function TaskRow({
         </div>
         <div className="task-row-links" style={{ paddingLeft: `${String(row.depth * 1.25 + 1.6)}rem` }}>
           <button className="inline-link" type="button" disabled={disabled || !canHaveSubtask} title={canHaveSubtask ? "Criar subtarefa" : "Remova as dependências desta tarefa antes de adicionar subtarefas"} onClick={onPrepareSubtask}>+ Subtarefa</button>
-          <button className="inline-link" type="button" aria-expanded={showDetails} aria-controls={detailsId} onClick={() => { setShowDetails((visible) => !visible); }}>{showDetails ? "Ocultar detalhes" : "Detalhes"}</button>
+          <button ref={detailsButtonRef} className="inline-link" type="button" aria-expanded={showDetails} aria-controls={detailsId} onKeyDown={closeDetailsOnEscape} onClick={() => { setShowDetails((visible) => !visible); }}>{showDetails ? "Ocultar detalhes" : "Detalhes"}</button>
         </div>
         {taskConflicts.map((conflict) => <p className="conflict-message" key={`${conflict.kind}-${conflict.requiredStartDate}`}>{conflict.message}</p>)}
       </td>
@@ -352,7 +361,7 @@ function TaskRow({
       <tr className="task-details-row">
         <td className="selection-cell" />
         <td colSpan={11}>
-          <div className="task-details" id={detailsId} style={{ marginLeft: `${String(row.depth * 1.25)}rem` }}>
+          <div className="task-details" id={detailsId} style={{ marginLeft: `${String(row.depth * 1.25)}rem` }} onKeyDown={closeDetailsOnEscape}>
             <label>
               <span className="detail-label">
                 Código

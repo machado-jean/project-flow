@@ -29,6 +29,7 @@ import type {
 const ganttHarness = vi.hoisted(() => ({
   api: {
     on: vi.fn(),
+    intercept: vi.fn(),
     detach: vi.fn(),
   },
 }));

@@ -143,9 +143,11 @@ regras detalhadas e a matriz de testes estão em [scheduling.md](scheduling.md).
 - projetos arquivados são mantidos no banco e ficam em modo somente leitura;
 - filtros por texto, status, prioridade, conclusão, intervalo e tag são
   compartilhados pelas três views e preservam ancestrais como contexto;
-- o Kanban oferece drag-and-drop e um seletor equivalente operável por teclado;
-- o Gantt é carregado sob demanda, fica somente leitura como renderer e envia
-  edições de prazo pelo scheduler do ProjectFlow;
+- o Kanban usa Pointer Events para arraste consistente no WebView2 e mantém um
+  seletor equivalente operável por teclado;
+- o Gantt é carregado sob demanda; gestos de barra e de dependência são
+  interceptados antes da gravação e convertidos em comandos do domínio do
+  ProjectFlow, sem transformar o estado interno do renderer em fonte de verdade;
 - o Gantt converte o fim inclusivo para o limite exclusivo esperado pelo
   renderer e permite isolar relações longas por clique ou seletor;
 - a janela desktop inicia maximizada, preservando dimensões mínimas para

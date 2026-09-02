@@ -178,6 +178,8 @@ export function ProjectViews({
                 dependencies={dependencies}
                 disabled={disabled}
                 onSave={onSave}
+                onCreateDependency={onCreateDependency}
+                onDeleteDependency={onDeleteDependency}
               />
             </Suspense>
           </ViewErrorBoundary>

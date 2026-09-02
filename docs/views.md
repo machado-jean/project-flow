@@ -69,7 +69,9 @@ calendário do domínio.
 Por padrão todas as relações aparecem. Ao clicar em uma linha, ou escolher uma
 relação em **Dependência em foco**, somente aquela relação permanece visível,
 com predecessor e sucessora realçados. Isso permite seguir dependências longas
-sem confundi-las com as demais; **Todas as dependências** restaura o conjunto.
+sem confundi-las com as demais. As outras relações permanecem visíveis com
+menor intensidade e continuam selecionáveis; **Todas as dependências** remove o
+realce.
 
 O renderer fica em modo somente leitura. O painel **Inspecionar tarefa** permite
 alterar início e duração apenas quando isso é seguro; tarefas-resumo exibem a

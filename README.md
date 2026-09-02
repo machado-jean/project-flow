@@ -26,8 +26,9 @@ As Fases 0 a 6 estão concluídas e o Checkpoint Git 7 foi consolidado no commit
 - persistência atômica das recalculações;
 - filtros compartilhados por texto, status, prioridade, conclusão, datas e tag;
 - Kanban por status com drag-and-drop e campo **Status** acessível;
-- Gantt com hierarquia, progresso, dependências FS, resumos, escalas, fins de
-  semana, feriados, foco de dependência e edição temporal segura;
+- Gantt com hierarquia, progresso, dependências FS, ajuste automático de lag,
+  menu de contexto, desfazer/refazer, resumos, escalas, fins de semana,
+  feriados, foco de dependência e edição temporal segura;
 - sincronização imediata entre Tabela, Kanban e Gantt;
 - janela principal maximizada na inicialização;
 - duplicação de tarefa isolada, árvore completa e projeto, sempre com novos UUIDs;

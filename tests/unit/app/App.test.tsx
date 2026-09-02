@@ -32,14 +32,29 @@ import type {
 
 const ganttHarness = vi.hoisted(() => {
   let selectionListener: ((event: { readonly id: string }) => void) | null = null;
+  let selectionTag: symbol | null = null;
+  const interceptors = new Map<string, { listener: (event: unknown) => unknown; tag: symbol | null }>();
   return {
     api: {
-      on: vi.fn((action: string, listener: (event: { readonly id: string }) => void) => {
-        if (action === "select-task") selectionListener = listener;
+      on: vi.fn((action: string, listener: (event: { readonly id: string }) => void, config?: { readonly tag?: symbol }) => {
+        if (action === "select-task") {
+          selectionListener = listener;
+          selectionTag = config?.tag ?? null;
+        }
       }),
-      detach: vi.fn(() => { selectionListener = null; }),
+      intercept: vi.fn((action: string, listener: (event: unknown) => unknown, config?: { readonly tag?: symbol }) => {
+        interceptors.set(action, { listener, tag: config?.tag ?? null });
+      }),
+      detach: vi.fn((tag: symbol) => {
+        if (selectionTag === tag) selectionListener = null;
+        for (const [action, interceptor] of interceptors) {
+          if (interceptor.tag === tag) interceptors.delete(action);
+        }
+      }),
     },
     select(id: string) { selectionListener?.({ id }); },
+    intercept(action: string, event: unknown) { return interceptors.get(action)?.listener(event); },
+    hasInterceptor(action: string) { return interceptors.has(action); },
   };
 });
 
@@ -57,12 +72,12 @@ vi.mock("@svar-ui/react-gantt", () => ({
     return (
       <div data-testid="svar-gantt">
         {tasks?.map((task) => (
-          <button key={task.id} type="button" onClick={() => { if (task.id !== undefined) ganttHarness.select(task.id); }}>
+          <button key={task.id} type="button" data-task-id={`:${String(task.id)}`} onClick={() => { if (task.id !== undefined) ganttHarness.select(task.id); }}>
             {task.text}
           </button>
         ))}
         {links?.map((link) => (
-          <button key={link.id} type="button" data-link-id={link.id}>
+          <button key={link.id} type="button" data-link-id={`:${String(link.id)}`}>
             Dependência {link.id}
           </button>
         ))}
@@ -477,6 +492,28 @@ describe("aplicação ProjectFlow", () => {
     expect(screen.getByText(/Ele não altera o UUID interno da tarefa/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ocultar detalhes" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("table")).toHaveAccessibleName(/Tarefas do projeto/);
+
+    code.focus();
+    fireEvent.keyDown(code, { key: "Escape" });
+    expect(screen.queryByLabelText("Código visual da tarefa")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Detalhes" })).toHaveFocus();
+  });
+
+  it("apresenta os atalhos pelo menu Ajuda e pelo teclado", async () => {
+    render(<App repository={new MemoryWorkspaceRepository({ projects: [project()] })} />);
+    await screen.findByRole("heading", { name: "Tabela de tarefas" });
+
+    fireEvent.click(screen.getByText("Ajuda"));
+    const shortcutsButton = screen.getByRole("button", { name: /Atalhos de teclado/ });
+    expect(shortcutsButton).toHaveAttribute("aria-keyshortcuts", "Control+/");
+    fireEvent.click(shortcutsButton);
+    expect(screen.getByRole("dialog", { name: "Atalhos de teclado" })).toBeVisible();
+    expect(screen.getByText("Fechar menu, diálogo ou detalhes da tarefa")).toBeVisible();
+    fireEvent.keyDown(screen.getByRole("button", { name: "Fechar" }), { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Atalhos de teclado" })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "/", ctrlKey: true });
+    expect(screen.getByRole("dialog", { name: "Atalhos de teclado" })).toBeVisible();
   });
 
   it("identifica o projeto atual e fecha o menu superior com Escape", async () => {
@@ -870,6 +907,37 @@ describe("aplicação ProjectFlow", () => {
     expect(await screen.findByLabelText("Status da tarefa")).toHaveValue("IN_PROGRESS");
   });
 
+  it("move uma tarefa entre colunas do Kanban por arrastar e soltar", async () => {
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [scheduledTask(TASK_ID, "Preparar operação", "2026-08-28")],
+    });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Kanban" }));
+
+    const handle = screen.getByRole("button", { name: "Arrastar Preparar operação" });
+    const target = screen.getByRole("heading", { name: "Em andamento" }).closest("section");
+    expect(target).not.toBeNull();
+    Object.defineProperties(handle, {
+      setPointerCapture: { configurable: true, value: vi.fn() },
+      hasPointerCapture: { configurable: true, value: vi.fn(() => false) },
+    });
+    Object.defineProperty(document, "elementFromPoint", {
+      configurable: true,
+      value: vi.fn(() => target),
+    });
+
+    fireEvent.pointerDown(handle, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientX: 100, clientY: 100 });
+    expect(target).toHaveClass("drop-target");
+    fireEvent.pointerUp(handle, { pointerId: 1, clientX: 100, clientY: 100 });
+
+    await waitFor(() => { expect(repository.tasks[0]?.status).toBe("IN_PROGRESS"); });
+    expect(target).not.toHaveClass("drop-target");
+    expect(await screen.findByRole("status")).toHaveTextContent("movida para Em andamento");
+    Reflect.deleteProperty(document, "elementFromPoint");
+  });
+
   it("permite alternar as visualizações pelo teclado", async () => {
     const repository = new MemoryWorkspaceRepository({
       calendars: [defaultCalendar, continuousCalendar],
@@ -941,6 +1009,231 @@ describe("aplicação ProjectFlow", () => {
     });
   });
 
+  it("move uma tarefa livre pelo evento visual do Gantt", async () => {
+    const scheduled = scheduledTask(TASK_ID, "Planejar entrega", "2026-08-28");
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [scheduled] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+
+    expect(ganttHarness.intercept("update-task", {
+      id: TASK_ID,
+      task: { start: new Date(2026, 7, 28), end: new Date(2026, 7, 29) },
+      diff: 3,
+    })).toBe(true);
+
+    await waitFor(() => {
+      expect(repository.tasks[0]?.startDate).toBe("2026-08-31");
+      expect(repository.tasks[0]?.endDate).toBe("2026-08-31");
+    });
+  });
+
+  it("salva o percentual arrastado no Gantt", async () => {
+    const scheduled = scheduledTask(TASK_ID, "Planejar entrega", "2026-08-28", { progress: 20 });
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [scheduled] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+
+    expect(ganttHarness.intercept("update-task", {
+      id: TASK_ID,
+      task: { progress: 65 },
+      inProgress: false,
+    })).toBe(true);
+
+    await waitFor(() => { expect(repository.tasks[0]?.progress).toBe(65); });
+    expect(await screen.findByRole("status")).toHaveTextContent("conclusão atualizada para 65%");
+  });
+
+  it("não persiste como edição do usuário o recálculo interno de uma tarefa-resumo", async () => {
+    const summary = scheduledTask(TASK_ID, "Resumo", "2026-08-28", {
+      endDate: "2026-08-28",
+      durationDays: 1,
+    });
+    const child = scheduledTask(SECOND_TASK_ID, "Executar", "2026-08-28", {
+      parentId: summary.id,
+    });
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [summary, child] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+
+    expect(ganttHarness.intercept("update-task", {
+      id: TASK_ID,
+      task: { start: new Date(2026, 7, 29), end: new Date(2026, 7, 30) },
+      eventSource: "update-task",
+    })).toBe(true);
+
+    await new Promise((resolve) => { setTimeout(resolve, 0); });
+    expect(repository.tasks[0]?.startDate).toBe("2026-08-28");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("bloqueia alteração visual do início de tarefa com predecessora e permite o fim", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", { position: 1 });
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()],
+      tasks: [predecessor, successor],
+      dependencies: [dependency(predecessor.id, successor.id)],
+    });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+
+    ganttHarness.intercept("update-task", {
+      id: SECOND_TASK_ID,
+      task: { start: new Date(2026, 7, 31) },
+      diff: 1,
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent("calculada pelas predecessoras");
+    expect(repository.tasks[1]?.startDate).toBe("2026-08-31");
+
+    ganttHarness.intercept("update-task", {
+      id: SECOND_TASK_ID,
+      task: { end: new Date(2026, 8, 1) },
+      diff: 1,
+    });
+    await waitFor(() => {
+      expect(repository.tasks[1]?.startDate).toBe("2026-08-31");
+      expect(repository.tasks[1]?.endDate).toBe("2026-09-01");
+      expect(repository.tasks[1]?.durationDays).toBe(2);
+    });
+  });
+
+  it("move tarefa automática com predecessora ajustando o lag FS", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", { position: 1 });
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()], tasks: [predecessor, successor],
+      dependencies: [dependency(predecessor.id, successor.id)],
+    });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+
+    ganttHarness.intercept("update-task", {
+      id: SECOND_TASK_ID,
+      task: { start: new Date(2026, 7, 31), end: new Date(2026, 7, 31) },
+      diff: 2,
+    });
+
+    await waitFor(() => {
+      expect(repository.tasks[1]?.startDate).toBe("2026-09-02");
+      expect(repository.dependencies[0]?.lagDays).toBe(2);
+    });
+    expect(screen.getByText(/1 intervalo FS ajustado/)).toBeInTheDocument();
+  });
+
+  it("restaura o Gantt e explica quando um arraste cai em dia não útil", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", { position: 1 });
+    const repository = new MemoryWorkspaceRepository({
+      projects: [project()], tasks: [predecessor, successor],
+      dependencies: [dependency(predecessor.id, successor.id)],
+    });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+
+    ganttHarness.intercept("update-task", {
+      id: SECOND_TASK_ID,
+      task: { start: new Date(2026, 7, 29), end: new Date(2026, 7, 29) },
+      diff: -2,
+    });
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "29/08/2026 não é um dia útil",
+    );
+    expect(repository.tasks[1]?.startDate).toBe("2026-08-31");
+  });
+
+  it("desfaz e refaz uma edição de progresso do Gantt", async () => {
+    const scheduled = scheduledTask(TASK_ID, "Planejar entrega", "2026-08-28", { progress: 20 });
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [scheduled] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("update-task")).toBe(true); });
+    ganttHarness.intercept("update-task", { id: TASK_ID, task: { progress: 65 }, inProgress: false });
+    await waitFor(() => { expect(repository.tasks[0]?.progress).toBe(65); });
+
+    fireEvent.click(screen.getByRole("button", { name: "Desfazer" }));
+    await waitFor(() => { expect(repository.tasks[0]?.progress).toBe(20); });
+    fireEvent.click(screen.getByRole("button", { name: "Refazer" }));
+    await waitFor(() => { expect(repository.tasks[0]?.progress).toBe(65); });
+  });
+
+  it("cria uma dependência FS pelo evento visual do Gantt", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", { position: 1 });
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [predecessor, successor] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    await screen.findByTestId("svar-gantt");
+    await waitFor(() => { expect(ganttHarness.hasInterceptor("add-link")).toBe(true); });
+
+    expect(ganttHarness.intercept("add-link", {
+      link: { source: TASK_ID, target: SECOND_TASK_ID, type: "e2s" },
+    })).toBe(true);
+    await waitFor(() => {
+      expect(repository.dependencies).toHaveLength(1);
+      expect(repository.dependencies[0]).toMatchObject({
+        predecessorId: TASK_ID,
+        successorId: SECOND_TASK_ID,
+        type: "FS",
+        lagDays: 0,
+      });
+    });
+  });
+
+  it("adiciona predecessora FS pelo menu de contexto da tarefa", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", { position: 1 });
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [predecessor, successor] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    const successorButton = await screen.findByRole("button", { name: "2. Sucessora" });
+
+    fireEvent.contextMenu(successorButton, { clientX: 400, clientY: 300 });
+    const openPicker = screen.getByRole("button", { name: "Adicionar predecessora…" });
+    fireEvent.pointerDown(openPicker);
+    fireEvent.click(openPicker);
+    fireEvent.change(screen.getByLabelText("Predecessora FS"), { target: { value: TASK_ID } });
+    fireEvent.click(screen.getByRole("button", { name: "Criar FS" }));
+
+    await waitFor(() => {
+      expect(repository.dependencies[0]).toMatchObject({
+        predecessorId: TASK_ID,
+        successorId: SECOND_TASK_ID,
+        type: "FS",
+        lagDays: 0,
+      });
+    });
+  });
+
+  it("exclui uma dependência pelo menu de contexto da linha", async () => {
+    const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
+    const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", { position: 1 });
+    const relation = dependency(predecessor.id, successor.id);
+    const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [predecessor, successor], dependencies: [relation] });
+    render(<App repository={repository} />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Gantt" }));
+    const link = await screen.findByRole("button", { name: `Dependência ${relation.id}` });
+
+    fireEvent.contextMenu(link, { clientX: 400, clientY: 300 });
+    fireEvent.click(screen.getByRole("button", { name: "Excluir dependência" }));
+
+    await waitFor(() => { expect(repository.dependencies).toHaveLength(0); });
+    expect(screen.getByText("Dependência FS excluída.")).toBeInTheDocument();
+  });
+
   it("sincroniza o inspetor ao selecionar uma barra do Gantt", async () => {
     const scheduled = scheduledTask(TASK_ID, "Planejar entrega", "2026-08-28");
     const repository = new MemoryWorkspaceRepository({ projects: [project()], tasks: [scheduled] });
@@ -954,16 +1247,18 @@ describe("aplicação ProjectFlow", () => {
     expect(screen.getByLabelText("Duração útil")).toHaveValue(1);
   });
 
-  it("isola uma dependência do Gantt ao clicar na linha e permite voltar a todas", async () => {
+  it("realça uma dependência sem esconder as demais e permite voltar a todas", async () => {
     const predecessor = scheduledTask(TASK_ID, "Predecessora", "2026-08-28");
     const successor = scheduledTask(SECOND_TASK_ID, "Sucessora", "2026-08-31", {
       position: 1,
     });
+    const third = scheduledTask(THIRD_TASK_ID, "Terceira", "2026-09-01", { position: 2 });
     const relation = dependency(predecessor.id, successor.id);
+    const otherRelation = { ...dependency(successor.id, third.id), id: "40000000-0000-4000-8000-000000000099" };
     const repository = new MemoryWorkspaceRepository({
       projects: [project()],
-      tasks: [predecessor, successor],
-      dependencies: [relation],
+      tasks: [predecessor, successor, third],
+      dependencies: [relation, otherRelation],
     });
     render(<App repository={repository} />);
 
@@ -974,6 +1269,7 @@ describe("aplicação ProjectFlow", () => {
 
     expect(screen.getByLabelText("Dependência em foco")).toHaveValue(relation.id);
     expect(screen.getByText(/Em foco: 1\. Predecessora → 2\. Sucessora/)).toBeVisible();
+    expect(screen.getByRole("button", { name: `Dependência ${otherRelation.id}` })).toBeVisible();
 
     fireEvent.change(screen.getByLabelText("Dependência em foco"), {
       target: { value: "" },

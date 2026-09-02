@@ -318,6 +318,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .kanban-section, .gantt-section { padding: 20px 26px 28px; }
 .kanban-board { display: grid; min-height: 430px; grid-template-columns: repeat(5, minmax(215px, 1fr)); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
 .kanban-column { display: flex; min-height: 420px; flex-direction: column; background: #eef2f6; border: 1px solid #dce3eb; border-top: 3px solid #94a3b8; border-radius: 9px; }
+.kanban-column.drop-target { background: #e8f1ff; border-color: #4f8de8; box-shadow: inset 0 0 0 2px rgb(37 99 235 / 14%); }
 .kanban-column.status-in-progress { border-top-color: #3b82f6; }
 .kanban-column.status-blocked { border-top-color: #d97706; }
 .kanban-column.status-completed { border-top-color: #15966a; }
@@ -327,10 +328,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .kanban-column > header span { display: grid; min-width: 21px; height: 21px; place-items: center; color: #657488; background: #fff; border-radius: 10px; font-size: 9px; font-weight: 750; }
 .kanban-cards { display: flex; flex: 1; flex-direction: column; gap: 7px; padding: 0 7px 8px; }
 .kanban-column-empty { padding: 22px 8px; margin: 0; text-align: center; color: #98a4b2; border: 1px dashed #cbd4de; border-radius: 7px; font-size: 9px; }
-.kanban-card { padding: 10px; background: #fff; border: 1px solid #dce2e9; border-radius: 8px; box-shadow: 0 1px 2px rgb(31 41 51 / 5%); cursor: grab; }
-.kanban-card:active { cursor: grabbing; }
+.kanban-card { padding: 10px; background: #fff; border: 1px solid #dce2e9; border-radius: 8px; box-shadow: 0 1px 2px rgb(31 41 51 / 5%); }
 .kanban-card.dragging { opacity: 0.5; }
 .kanban-card:focus-within { border-color: #81a8e9; box-shadow: 0 0 0 2px rgb(37 99 235 / 10%); }
+.kanban-drag-handle { display: inline-grid; flex: 0 0 25px; width: 25px; min-height: 25px; padding: 0; place-items: center; color: #64748b; background: transparent; border: 1px solid transparent; border-radius: 5px; cursor: grab; touch-action: none; user-select: none; }
+.kanban-drag-handle:hover { color: #2563eb; background: #eff6ff; border-color: #bfdbfe; }
+.kanban-drag-handle:active { cursor: grabbing; }
+.kanban-drag-handle:disabled { cursor: not-allowed; opacity: 0.55; }
+.kanban-error { margin: 0 0 10px; }
 .kanban-path { display: block; overflow: hidden; margin-bottom: 4px; color: #8a96a4; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .kanban-card-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 7px; }
 .kanban-card-title > div { display: flex; min-width: 0; align-items: baseline; gap: 4px; }
@@ -352,6 +357,77 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .kanban-move select { min-width: 0; width: 100%; padding: 4px; background: #f8fafc; border: 1px solid #d4dce5; border-radius: 5px; font-size: 9px; }
 
 .gantt-heading { align-items: center; }
+
+.gantt-history-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 2rem;
+  margin: 0.5rem 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.gantt-history-actions button {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  padding: 0.32rem 0.65rem;
+  background: #fff;
+  color: inherit;
+}
+
+.gantt-context-menu {
+  position: fixed;
+  z-index: 300;
+  display: grid;
+  gap: 0.45rem;
+  width: min(290px, calc(100vw - 24px));
+  padding: 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 22%);
+}
+
+.gantt-context-menu > button,
+.gantt-context-predecessor > button {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.4rem;
+  background: #f8fafc;
+  text-align: left;
+}
+
+.gantt-context-menu > button:first-child:hover,
+.gantt-context-menu > button:first-child:focus-visible,
+.gantt-context-predecessor > button:hover,
+.gantt-context-predecessor > button:focus-visible {
+  background: #eff6ff;
+}
+
+.gantt-context-predecessor {
+  display: grid;
+  gap: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.gantt-context-predecessor label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.gantt-context-predecessor select {
+  width: 100%;
+  padding: 0.45rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.4rem;
+  background: #fff;
+}
 .gantt-scale-control { display: flex; align-items: center; gap: 7px; color: #687688; font-size: 9px; font-weight: 700; }
 .gantt-scale-control select { min-height: 32px; padding: 5px 9px; background: #fff; border: 1px solid #cfd7e1; border-radius: 6px; font-size: 10px; }
 .gantt-legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 10px; margin-bottom: 8px; color: #697789; background: #fff; border: 1px solid #e0e5eb; border-radius: 7px; font-size: 9px; }
@@ -374,7 +450,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .gantt-chart-shell .projectflow-gantt-holiday { color: #9a641d; background: #fff1d9; }
 .gantt-chart-shell .wx-line-hitbox { cursor: pointer; }
 .gantt-chart-shell .wx-line:hover > .wx-line-draw { stroke: #2563eb; stroke-width: 3px; }
-.gantt-chart-shell.dependency-focus-active .wx-line-draw { stroke: #d97706; stroke-width: 3px; }
+.gantt-chart-shell.dependency-focus-active .wx-line:not(.wx-line-selected) { opacity: .32; }
+.gantt-chart-shell.dependency-focus-active .wx-line:not(.wx-line-selected):hover { opacity: 1; }
+.gantt-chart-shell.dependency-focus-active .wx-line-selected { opacity: 1; }
+.gantt-chart-shell .wx-bar .wx-link { display: none; }
 .gantt-inspector { padding: 15px; background: #fbfcfe; }
 .gantt-inspector h3 { margin: 0 0 13px; color: #38475a; font-size: 12px; }
 .gantt-inspector > label, .gantt-schedule-form label { display: grid; gap: 4px; color: #687688; font-size: 9px; font-weight: 680; }
@@ -431,6 +510,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .import-warning { padding: 9px 11px; margin: 15px 0 0; color: #79531e; background: #fff7e5; border: 1px solid #ecd49b; border-radius: 6px; font-size: 9px; line-height: 1.45; }
 .portability-modal footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .portability-modal:focus, .template-dialog:focus { outline: none; }
+.shortcuts-menu-button { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 10px; }
+kbd { display: inline-block; min-width: 22px; padding: 2px 6px; color: #42526a; background: #f4f6f8; border: 1px solid #cbd5e1; border-bottom-width: 2px; border-radius: 5px; font: 600 10px/1.35 ui-monospace, "Cascadia Mono", Consolas, monospace; text-align: center; white-space: nowrap; }
+.shortcut-list { display: grid; gap: 0; margin: 16px 0 4px; }
+.shortcut-list > div { display: grid; grid-template-columns: minmax(130px, 0.75fr) 1.6fr; align-items: center; gap: 16px; min-height: 43px; padding: 7px 4px; border-bottom: 1px solid #e5eaf0; }
+.shortcut-list dt, .shortcut-list dd { margin: 0; }
+.shortcut-list dd { color: #536273; font-size: 12px; }
 
 /* A interface permanece densa, mas textos operacionais não dependem de tipos minúsculos. */
 .workspace-menu > summary,

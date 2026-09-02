@@ -182,14 +182,52 @@ anterior: as sucessoras `AUTO` devem retornar para as restrições FS recalculad
 preservando duração e lag. **Revisar marco manual** não deve ser deslocada em
 nenhum dos sentidos; quando sua data viola a relação, deve apenas exibir o aviso.
 
+## Edição direta no Gantt
+
+O Gantt é uma superfície de comando, não uma segunda fonte de cronograma:
+
+- tarefa executável sem predecessora pode ser movida e ter as duas bordas
+  redimensionadas;
+- mover preserva a duração útil; redimensionar recalcula a duração pelo
+  calendário efetivo;
+- ao soltar uma barra em dia não permitido, o Gantt normaliza o início para o
+  próximo dia útil ou exceção permitida pelo calendário efetivo;
+- a borda esquerda de tarefa com predecessora continua bloqueada, mas mover a
+  barra inteira ajusta automaticamente o lag FS em dias úteis;
+- ao mover uma tarefa `AUTO` para depois, somente a relação controladora recebe
+  o aumento necessário; ao antecipar, todas as relações que ainda limitariam a
+  data têm seus lags reduzidos, nunca abaixo de zero;
+- se a data solicitada violar uma predecessora com lag zero, o movimento para na
+  primeira data FS válida e informa a limitação;
+- ao ampliar o fim, os sucessores `AUTO` são propagados para frente; ao reduzir,
+  são antecipados quando a restrição FS permitir;
+- tarefa `MANUAL` continua sujeita à política do scheduler e recebe conflito em
+  vez de deslocamento automático;
+- tarefa-resumo nunca aceita edição temporal direta;
+- o marcador interno da barra altera a conclusão entre 0% e 100% sem executar
+  recálculo temporal;
+- o botão direito na tarefa abre **Adicionar predecessora** e apresenta somente
+  tarefas executáveis cujo fim é anterior ao início da sucessora. A nova
+  relação é FS com lag zero; duplicidade e ciclos continuam validados;
+- o botão direito na linha abre **Excluir dependência**. O menu genérico do
+  WebView2 é suprimido dentro do gráfico, e os identificadores visuais da
+  biblioteca são convertidos de volta aos UUIDs persistidos;
+- conclusão e cronograma alterados pelo Gantt podem ser desfeitos/refeitos pelos
+  botões da view ou por `Ctrl+Z`/`Ctrl+Y`; a cascata é recalculada na mesma
+  transação.
+
+Todo gesto final passa por validação, scheduler e persistência transacional. Em
+falha, a projeção é reconstruída a partir do estado persistido. Eventos internos
+do renderer, como a atualização visual de uma barra-resumo, não são tratados
+como edições do usuário.
+
 ## Fora do escopo do scheduler básico e do Gantt da Fase 4
 
 - dependências SS, FF e SF;
 - dependências entre projetos;
 - inferência de uma data anterior após remover a última predecessora;
 - caminho crítico e nivelamento de recursos continuam fora do Gantt da Fase 4;
-- drag/resize direto nas barras permanece desabilitado: edições temporais usam
-  o painel do ProjectFlow para respeitar este scheduler.
+- mover árvores completas de tarefas-resumo permanece fora do escopo.
 
 ## Importação de feriados oficiais
 

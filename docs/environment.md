@@ -260,6 +260,12 @@ importação e comparação semântica. Ele também é executado pelo CI Windows
 O diagnóstico não bloqueante da janela real pode ser repetido após uma correção
 upstream com `npm run test:e2e:desktop`; seus dados ficam em `.local/e2e/`.
 
+O WebView2 Evergreen permanece a estratégia recomendada para produção. A
+próxima evolução do harness desktop deverá isolar também o User Data Folder e a
+porta CDP em cada execução, aguardar o encerramento dos processos filhos e
+comprovar repetibilidade antes de integrar o CI. A matriz e as fontes oficiais
+estão em [Diretrizes de validação do WebView2](webview2-testing.md).
+
 Gates atuais: 92 testes TypeScript/React regulares, 1 jornada E2E de aplicação,
 2 testes de desempenho e 30 testes Rust/SQLite aprovados; lint, typecheck, build
 web, Cargo fmt/check/test/Clippy, build NSIS de produção e auditoria npm sem
@@ -332,3 +338,22 @@ Ambos possuem uma assinatura `.sig` do updater, mas continuam sem Authenticode.
 O `latest.json` referencia o instalador padrão e incorpora sua assinatura. O CI
 usa `--no-sign` para validar o NSIS sem expor segredos; builds de release exigem
 `TAURI_SIGNING_PRIVATE_KEY`.
+
+Para a `v0.1.4`, nenhuma ferramenta global ou dependência externa foi
+adicionada. Os manifests do frontend, Rust e Tauri foram atualizados em conjunto
+para `0.1.4`. Os instaladores foram assinados com a mesma chave permanente do
+updater, mantida em `.local/secrets/`.
+
+Artefatos locais da `v0.1.4` em `.local/distribution/v0.1.4/`:
+
+| Arquivo | Tamanho | SHA-256 |
+| --- | ---: | --- |
+| `ProjectFlow-Windows-x64-Setup.exe` | 4.979.480 bytes | `8082CE2EEACB0F2FCADE7C72B484577DF59D662D48DCB94D3B453C44A89B9E82` |
+| `ProjectFlow-Windows-x64-Offline-Setup.exe` | 266.807.341 bytes | `8D5403220DC718DED7F7DC2EBB2C83754605FD8A2802EE688CCA7C7A2FA8C50D` |
+
+Os dois instaladores possuem arquivos `.sig`; `latest.json` referencia o
+instalador padrão pelo endereço permanente da última release. O E2E desktop não
+iniciou neste host porque o WebView2 retornou `Recurso solicitado em uso` antes
+de expor o CDP. O gate regular, 30 testes Rust/SQLite, a jornada E2E da aplicação
+e os testes de desempenho foram aprovados; a atualização instalada deve ser
+validada novamente na VM limpa.

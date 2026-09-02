@@ -1,4 +1,4 @@
-import { useMemo, useState, type DragEvent } from "react";
+import { useMemo, useState, type PointerEvent } from "react";
 
 import type { TaskDependency } from "../../domain/scheduling/dependency";
 import {
@@ -61,7 +61,10 @@ export function TaskKanban({
   onSave,
 }: TaskKanbanProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(null);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
   const tasksById = useMemo(
     () => new Map(allProjectTasks.map((task) => [task.id, task])),
     [allProjectTasks],
@@ -78,18 +81,36 @@ export function TaskKanban({
   const changeStatus = async (task: Task, status: TaskStatus): Promise<void> => {
     if (disabled || task.status === status) return;
     setSavingTaskId(task.id);
+    setLocalError(null);
     try {
-      await onSave({ ...task, status });
+      const saved = await onSave({ ...task, status });
+      if (saved) {
+        setAnnouncement(`${task.title} movida para ${TASK_STATUS_LABELS[status]}.`);
+      } else {
+        setLocalError("Não foi possível salvar o novo status. A tarefa permaneceu na coluna anterior.");
+      }
+    } catch {
+      setLocalError("Não foi possível salvar o novo status. A tarefa permaneceu na coluna anterior.");
     } finally {
       setSavingTaskId(null);
     }
   };
 
-  const dropTask = (event: DragEvent<HTMLElement>, status: TaskStatus): void => {
-    event.preventDefault();
-    const taskId = event.dataTransfer.getData("text/projectflow-task") || draggedTaskId;
+  const statusAtPoint = (clientX: number, clientY: number): TaskStatus | null => {
+    const element = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>("[data-kanban-status]");
+    const status = element?.dataset.kanbanStatus;
+    return TASK_STATUSES.find((candidate) => candidate === status) ?? null;
+  };
+
+  const finishPointerDrag = (event: PointerEvent<HTMLButtonElement>): void => {
+    const taskId = draggedTaskId;
+    const status = statusAtPoint(event.clientX, event.clientY) ?? dropTargetStatus;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     setDraggedTaskId(null);
-    if (taskId === null) return;
+    setDropTargetStatus(null);
+    if (taskId === null || status === null) return;
     const task = allProjectTasks.find((candidate) => candidate.id === taskId);
     if (task !== undefined) void changeStatus(task, status);
   };
@@ -103,6 +124,8 @@ export function TaskKanban({
         </div>
         <span>{String(tasks.length)} tarefa{tasks.length === 1 ? "" : "s"}</span>
       </header>
+      <span className="sr-only" role="status" aria-live="polite">{announcement}</span>
+      {localError === null ? null : <p className="field-error kanban-error" role="alert">{localError}</p>}
 
       {tasks.length === 0 ? (
         <div className="view-empty" role="status">
@@ -116,10 +139,9 @@ export function TaskKanban({
             return (
               <section
                 key={status}
-                className={`kanban-column status-${status.toLocaleLowerCase().replace("_", "-")}`}
+                className={`kanban-column status-${status.toLocaleLowerCase().replace("_", "-")}${dropTargetStatus === status ? " drop-target" : ""}`}
                 aria-labelledby={`kanban-${status}`}
-                onDragOver={(event) => { if (!disabled) event.preventDefault(); }}
-                onDrop={(event) => { dropTask(event, status); }}
+                data-kanban-status={status}
               >
                 <header>
                   <h3 id={`kanban-${status}`}>{TASK_STATUS_LABELS[status]}</h3>
@@ -140,17 +162,40 @@ export function TaskKanban({
                         key={task.id}
                         className={`kanban-card${draggedTaskId === task.id ? " dragging" : ""}`}
                         aria-busy={isSaving}
-                        draggable={!disabled && !isSaving}
-                        onDragStart={(event) => {
-                          event.dataTransfer.effectAllowed = "move";
-                          event.dataTransfer.setData("text/projectflow-task", task.id);
-                          setDraggedTaskId(task.id);
-                        }}
-                        onDragEnd={() => { setDraggedTaskId(null); }}
                       >
                         {path === null ? null : <span className="kanban-path">{path}</span>}
                         <div className="kanban-card-title">
                           <div>
+                            <button
+                              className="kanban-drag-handle"
+                              type="button"
+                              aria-label={`Arrastar ${task.title}`}
+                              title="Arrastar para outra coluna"
+                              disabled={disabled || isSaving}
+                              onPointerDown={(event) => {
+                                if (event.button !== 0) return;
+                                event.preventDefault();
+                                event.currentTarget.setPointerCapture(event.pointerId);
+                                setDraggedTaskId(task.id);
+                                setDropTargetStatus(task.status);
+                                setLocalError(null);
+                              }}
+                              onPointerMove={(event) => {
+                                if (draggedTaskId !== task.id) return;
+                                const status = statusAtPoint(event.clientX, event.clientY);
+                                if (status !== dropTargetStatus) setDropTargetStatus(status);
+                              }}
+                              onPointerUp={finishPointerDrag}
+                              onPointerCancel={(event) => {
+                                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                                  event.currentTarget.releasePointerCapture(event.pointerId);
+                                }
+                                setDraggedTaskId(null);
+                                setDropTargetStatus(null);
+                              }}
+                            >
+                              <span aria-hidden="true">⠿</span>
+                            </button>
                             <span className="kanban-outline-number">{outlineNumber}.</span>
                             <strong>{titleWithoutMatchingOutline(task.title, outlineNumber)}</strong>
                           </div>

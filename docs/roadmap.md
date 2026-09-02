@@ -4,7 +4,7 @@ Este é o registro vivo de execução do ProjectFlow. Ele traduz o roadmap defin
 
 `AGENTS.md` continua sendo a fonte de verdade para produto, arquitetura e regras operacionais. Este documento não substitui a especificação e não deve introduzir escopo incompatível com ela.
 
-Última atualização: **1º de setembro de 2026**.
+Última atualização: **2 de setembro de 2026**.
 
 ## Como manter este documento
 
@@ -34,10 +34,10 @@ Não usar percentuais subjetivos. O progresso deve ser demonstrado por entregáv
 | Etapa do produto | Hardening e distribuição Windows em andamento |
 | Fase ativa | Fase 7 — updater passivo v0.1.3 pronto para auditoria em VM |
 | Próxima fase | Validar instalação, atualização, preservação de dados e operação offline em máquina limpa |
-| Versão da aplicação | `0.1.3` |
+| Versão da aplicação | `0.1.4` |
 | Versão do schema SQLite | `4` |
 | Último commit estável | `87352f4` — `Add layered E2E coverage and finalize UX accessibility audit` |
-| Branch de trabalho | `main`, preparando os artefatos locais da `v0.1.3` |
+| Branch de trabalho | `main`, preparando os artefatos locais da `v0.1.4` |
 | Checkpoints obrigatórios | A, B, C e D concluídos; E reservado à distribuição |
 | Funcionalidades de negócio | Core, scheduler, views, reutilização e portabilidade implementados |
 
@@ -215,6 +215,9 @@ Estado: **Em andamento**.
 - [x] Implementar e executar o fluxo E2E mínimo.
 - [x] Avaliar e documentar MSI/NSIS e estratégia WebView2 offline.
 - [x] Gerar build release Windows x64 e instaladores padrão/offline.
+- [x] Definir e referenciar a matriz de validação WebView2/E2E desktop.
+- [ ] Isolar User Data Folder e porta CDP por execução no harness desktop.
+- [ ] Validar cinco inicializações consecutivas sem recursos órfãos.
 - [ ] Testar instalação em máquina Windows limpa sem toolchain.
 - [ ] Validar funcionamento integralmente offline.
 - [ ] Validar preservação de dados em atualização, reinstalação e desinstalação.
@@ -250,6 +253,11 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
 | Bundle WebView2 e instalador offline | Resolvida na Fase 7 | ADR 017 — NSIS padrão + variante offline |
 | Política de atualização sem chaves | Resolvida na Fase 7 | ADR 018 — consulta manual e instalação externa |
 | Automação E2E | Resolvida em camadas na Fase 7 | ADR 019 — jornada da aplicação + testes nativos; janela Tauri em diagnóstico |
+
+A implementação pendente e seus critérios objetivos estão em
+[Diretrizes de validação do WebView2](webview2-testing.md). O E2E desktop não
+deve ser promovido a gate nem motivar troca do runtime antes de cumprir essa
+matriz no host, na VM limpa e no CI Windows.
 
 ## Histórico de evolução
 
@@ -824,6 +832,57 @@ Estas decisões ainda não bloqueiam o projeto, mas devem ser resolvidas antes d
   privada continua obrigatória antes da publicação.
 - Os instaladores padrão e offline, suas assinaturas, `latest.json`, hashes e
   notas da `v0.1.3` foram gerados em `.local/distribution/v0.1.3/`.
+
+### 1º de setembro de 2026 — Menu de atalhos e fechamento consistente
+
+- **Ajuda > Atalhos de teclado** passou a reunir os comandos de navegação já
+  disponíveis, sem anunciar comportamentos ainda inexistentes.
+- `Ctrl+/` abre a referência de atalhos de qualquer ponto da aplicação; o
+  diálogo mantém foco preso, fecha com `Esc` e restaura o foco ao acionador.
+- `Esc` também recolhe os detalhes expandidos de uma tarefa e devolve o foco ao
+  botão **Detalhes** da linha correspondente.
+- A cobertura regular passou a 97 testes TypeScript/React, incluindo abertura
+  pelo menu e teclado, fechamento do diálogo e fechamento dos detalhes.
+- O arraste do Kanban foi refeito com uma alça baseada em Pointer Events,
+  removendo a dependência do HTML Drag and Drop que exibia o cursor de proibido
+  no WebView2. O destino é realçado e **Status** permanece como alternativa.
+- O Gantt passou a interceptar movimento, redimensionamento e ligação visual sem
+  delegar scheduling ao renderer. Tarefas livres podem mover início/fim;
+  tarefas com predecessora aceitam somente mudança do fim; resumos são
+  bloqueados; ligações novas são apenas FS com lag zero.
+- A cobertura regular passou a 106 testes. `npm run check`, o E2E da aplicação,
+  os limites de desempenho, build web, 30 testes Rust, `cargo fmt`, Clippy e o
+  build Tauri de teste passaram em 1º de setembro de 2026.
+- No executável real, o arraste do Kanban e a borda final do Gantt foram
+  persistidos e depois restaurados aos valores originais no banco de teste.
+- A integração do Gantt deixou de cancelar o evento final do renderer: movimento,
+  término, conclusão e ligação permanecem visíveis enquanto são persistidos. Os
+  eventos internos usados pelo SVAR para recalcular resumos são ignorados como
+  comandos de usuário, evitando reconstrução prematura da projeção.
+- O marcador de conclusão agora persiste percentuais entre 0% e 100%. A
+  cobertura regular passou a 108 testes, incluindo a separação entre gesto do
+  usuário e recálculo interno de resumo.
+- O movimento de tarefas `AUTO` com predecessoras passou a converter a data
+  solicitada em lag FS não negativo. Com múltiplas predecessoras, somente a
+  controladora aumenta no adiamento e todas as restrições necessárias diminuem
+  na antecipação; lag zero define o limite mínimo.
+- O Gantt ganhou feedback visível e histórico local de cronograma/conclusão com
+  **Desfazer**, **Refazer**, `Ctrl+Z` e `Ctrl+Y`. Cada restauração reutiliza a
+  transação do scheduler e recalcula a cascata.
+- A cobertura regular passou a 114 testes antes da validação final desta
+  entrega. SS, FF e SF não foram introduzidos.
+- O Gantt passou a normalizar movimentos em dias não permitidos para a próxima
+  data válida do calendário. Um menu de contexto próprio substitui as opções do
+  navegador na área do gráfico: tarefas podem receber predecessora FS e linhas
+  de dependência podem ser excluídas por alvos maiores. A cobertura regular
+  passou a 117 testes.
+- A criação de FS foi consolidada no menu de contexto da tarefa, com opções
+  limitadas às tarefas que terminam antes dela. A conversão dos identificadores
+  codificados pelo renderer para os UUIDs persistidos corrigiu seleção e
+  exclusão de linhas no Gantt.
+- O foco de dependência passou de filtro para realce: a relação selecionada fica
+  evidente, enquanto as demais permanecem visíveis, atenuadas e selecionáveis.
+- Commit: `não commitado`; nenhum push, tag ou release foi executado pelo agente.
 
 ## Regras permanentes de acompanhamento
 
